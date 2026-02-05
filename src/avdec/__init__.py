@@ -8,10 +8,16 @@ Example:
     >>> frames = decoder.get_frames_at([0, 10, 20])
     >>> print(frames.data.shape)  # (3, H, W, 3)
     >>> decoder.close()
+
+Diagnose videos for ML training:
+    >>> import avdec
+    >>> report = avdec.doctor("video.mp4")
+    >>> print(report)
 """
 
 from avdec._types import FrameBatch, FrameInfo, SeekMode, VideoStreamMetadata
 from avdec.decoder import VideoDecoder
+from avdec.doctor import doctor
 
 try:
     from avdec._version import __version__
@@ -24,6 +30,7 @@ __all__ = [
     "FrameBatch",
     "FrameInfo",
     "SeekMode",
+    "doctor",
     "__version__",
 ]
 
