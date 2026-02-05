@@ -25,7 +25,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "av>=13.0",
+    "av>=15.0",  # FFmpeg 7.0 support
     "numpy>=1.20",
 ]
 
