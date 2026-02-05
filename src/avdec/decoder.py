@@ -84,12 +84,8 @@ class VideoDecoder:
         """Select video stream by index or find the best one.
 
         [TorchCodec Compatibility: Best stream selection]
-        If stream_index is None, selects the "best" video stream based on:
-        1. Highest resolution (width * height)
-        2. If tie, uses FFmpeg's default ordering
-
-        This matches TorchCodec's behavior of selecting the best video stream.
-        TorchCodec's VideoCore::getBestVideoStreamIndex() uses av_find_best_stream().
+        If stream_index is None, uses FFmpeg's av_find_best_stream() via PyAV.
+        This matches TorchCodec's SingleStreamDecoder::getBestStreamIndex().
         """
         video_streams = self._container.streams.video
         if not video_streams:
@@ -104,16 +100,10 @@ class VideoDecoder:
                     return stream
             raise ValueError(f"Stream index {stream_index} not found in container")
 
-        # Select best video stream (highest resolution)
-        best_stream = video_streams[0]
-        best_resolution = best_stream.width * best_stream.height
-
-        for stream in video_streams[1:]:
-            resolution = stream.width * stream.height
-            if resolution > best_resolution:
-                best_stream = stream
-                best_resolution = resolution
-
+        # Use FFmpeg's av_find_best_stream() via PyAV
+        best_stream = self._container.streams.best('video')
+        if best_stream is None:
+            raise ValueError("No best video stream found")
         return best_stream
 
     def _extract_metadata(self) -> VideoStreamMetadata:
