@@ -155,3 +155,49 @@ class TestDimensionOrder:
         with pytest.raises(ValueError, match="Invalid dimension_order"):
             VideoDecoder(sample_video, dimension_order="INVALID")
 
+
+class TestFFmpegThreads:
+    """Test num_ffmpeg_threads parameter."""
+
+    def test_default_threads(self, sample_video):
+        """Test default thread count (0 = auto)."""
+        with VideoDecoder(sample_video) as decoder:
+            # Default is 0 (auto-detect)
+            assert decoder._num_ffmpeg_threads == 0
+            # Should still decode correctly
+            frame = decoder[0]
+            assert frame.shape == (3, 240, 320)
+
+    def test_explicit_threads(self, sample_video):
+        """Test explicit thread count."""
+        with VideoDecoder(sample_video, num_ffmpeg_threads=4) as decoder:
+            assert decoder._num_ffmpeg_threads == 4
+            frame = decoder[0]
+            assert frame.shape == (3, 240, 320)
+
+
+class TestSeekOptimization:
+    """Test seek optimization for sequential access."""
+
+    def test_sequential_access_no_seek(self, sample_video):
+        """Test that sequential access avoids seeking."""
+        with VideoDecoder(sample_video) as decoder:
+            # First access
+            _ = decoder.get_frames_at([0])
+            assert decoder._last_decoded_index is not None
+
+            # Sequential access should use optimization
+            _ = decoder.get_frames_at([1, 2, 3])
+            # Should have updated last decoded index
+            assert decoder._last_decoded_index >= 3
+
+    def test_random_access_resets(self, sample_video):
+        """Test that random access works correctly."""
+        with VideoDecoder(sample_video) as decoder:
+            # Access frame 0
+            _ = decoder.get_frames_at([0])
+            # Jump to frame 20 (should seek)
+            batch = decoder.get_frames_at([20])
+            assert len(batch) == 1
+            assert decoder._last_decoded_index >= 20
+

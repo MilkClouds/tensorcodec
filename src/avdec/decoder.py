@@ -64,6 +64,9 @@ class VideoDecoder:
             using FFmpeg's av_find_best_stream()
         dimension_order: Output dimension order, "NCHW" (default) or "NHWC"
             [TorchCodec Compatibility: VideoDecoder(dimension_order=...)]
+        num_ffmpeg_threads: Number of threads for FFmpeg decoding.
+            0 = auto-detect based on CPU cores (default).
+            [TorchCodec Compatibility: VideoDecoder(num_ffmpeg_threads=...)]
 
     Example:
         >>> decoder = VideoDecoder("video.mp4")
@@ -79,6 +82,7 @@ class VideoDecoder:
         seek_mode: SeekMode = SeekMode.EXACT,
         stream_index: Optional[int] = None,
         dimension_order: DimensionOrder = "NCHW",
+        num_ffmpeg_threads: int = 0,
     ):
         # Validate dimension_order
         if dimension_order not in ("NCHW", "NHWC"):
@@ -90,9 +94,15 @@ class VideoDecoder:
         self._source = Path(source) if isinstance(source, str) else source
         self._seek_mode = seek_mode
         self._dimension_order = dimension_order
+        self._num_ffmpeg_threads = num_ffmpeg_threads
         self._container: av.InputContainer = av.open(str(self._source), "r")
         self._stream = self._select_video_stream(stream_index)
         self._stream_index = self._stream.index
+
+        # Configure FFmpeg threading (must be before decoding starts)
+        # [TorchCodec Compatibility: num_ffmpeg_threads parameter]
+        self._stream.thread_count = num_ffmpeg_threads
+        self._stream.thread_type = "AUTO"  # Use both SLICE and FRAME threading
 
         # Build frame index for exact mode (before metadata extraction)
         if seek_mode == SeekMode.EXACT:
@@ -112,6 +122,9 @@ class VideoDecoder:
             if self._metadata.end_stream_seconds is not None
             else self._metadata.duration_seconds
         )
+
+        # Track last decoded frame index for seek optimization
+        self._last_decoded_index: Optional[int] = None
 
     def _select_video_stream(self, stream_index: Optional[int]) -> av.VideoStream:
         """Select video stream by index or find the best one.
@@ -536,12 +549,41 @@ class VideoDecoder:
             seconds = [idx / fps for idx in indices]
             return self._decode_frames(indices, seconds)
 
+    def _can_avoid_seeking(self, first_target_idx: int) -> bool:
+        """Check if we can avoid seeking by continuing from current position.
+
+        [TorchCodec Compatibility: canWeAvoidSeeking() optimization]
+        If the first target frame is close to where we left off, we can
+        continue decoding sequentially instead of seeking.
+        """
+        if self._last_decoded_index is None:
+            return False
+
+        # Can continue if target is ahead of last position but not too far
+        # TorchCodec uses a similar heuristic - avoid seek if within ~GOP distance
+        distance = first_target_idx - self._last_decoded_index
+        if distance <= 0:
+            # Target is behind current position, must seek
+            return False
+
+        # If target is within reasonable distance, continue decoding
+        # Use GOP size estimate (keyframe interval) as threshold
+        gop_estimate = 30  # Default GOP size estimate
+        if self._frame_index and len(self._frame_index.keyframe_indices) >= 2:
+            # Estimate GOP from actual keyframe positions
+            kf_indices = self._frame_index.keyframe_indices
+            avg_gop = (kf_indices[-1] - kf_indices[0]) / (len(kf_indices) - 1)
+            gop_estimate = int(avg_gop)
+
+        return distance <= gop_estimate
+
     def _decode_frames(
         self, indices: List[int], query_seconds: List[float]
     ) -> FrameBatch:
         """Decode frames at given indices.
 
         Uses sequential decoding with efficient keyframe seeking.
+        Implements seek optimization to avoid unnecessary seeks.
         """
         # Build mapping: (original_position, frame_index, query_seconds)
         queries = [(i, idx, sec) for i, (idx, sec) in enumerate(zip(indices, query_seconds))]
@@ -554,20 +596,29 @@ class VideoDecoder:
         unique_indices = sorted(set(idx for _, idx, _ in queries_sorted))
 
         if unique_indices:
-            # Seek to keyframe before first requested frame
-            first_keyframe_idx = self._find_keyframe_before(unique_indices[0])
-            if self._frame_index and first_keyframe_idx < len(self._frame_index.frame_infos):
-                seek_pts = self._frame_index.frame_infos[first_keyframe_idx].pts
-            else:
-                seek_pts = first_keyframe_idx / self._metadata.average_fps
+            first_target_idx = unique_indices[0]
 
-            # Seek to position
-            seek_ts = int(seek_pts / float(self._stream.time_base))
-            self._container.seek(seek_ts, stream=self._stream)
+            # [TorchCodec Compatibility: Seek optimization]
+            # Check if we can avoid seeking by continuing from current position
+            if self._can_avoid_seeking(first_target_idx):
+                # Continue from current position
+                start_idx = self._last_decoded_index + 1
+            else:
+                # Seek to keyframe before first requested frame
+                first_keyframe_idx = self._find_keyframe_before(first_target_idx)
+                if self._frame_index and first_keyframe_idx < len(self._frame_index.frame_infos):
+                    seek_pts = self._frame_index.frame_infos[first_keyframe_idx].pts
+                else:
+                    seek_pts = first_keyframe_idx / self._metadata.average_fps
+
+                # Seek to position
+                seek_ts = int(seek_pts / float(self._stream.time_base))
+                self._container.seek(seek_ts, stream=self._stream)
+                start_idx = first_keyframe_idx
 
             # Decode sequentially
             target_set = set(unique_indices)
-            current_idx = first_keyframe_idx
+            current_idx = start_idx
 
             for frame in self._container.decode(self._stream):
                 if current_idx in target_set:
@@ -578,6 +629,9 @@ class VideoDecoder:
 
                 if not target_set or current_idx > unique_indices[-1]:
                     break
+
+            # Update last decoded position for seek optimization
+            self._last_decoded_index = current_idx - 1
 
         # Convert to numpy and reorder to original query order
         frames_data = []

@@ -114,11 +114,17 @@ def build_frame_index_from_scan(
     keyframe_indices: List[int] = []
 
     # Demux packets to get PTS without decoding
+    # [TorchCodec Compatibility: getPtsOrDts() fallback]
+    # TorchCodec uses getPtsOrDts() which falls back to DTS if PTS is invalid
     for idx, packet in enumerate(container.demux(stream)):
-        if packet.pts is None:
+        # Use PTS if available, fall back to DTS (TorchCodec's getPtsOrDts())
+        pts = packet.pts
+        if pts is None:
+            pts = packet.dts
+        if pts is None:
             continue
 
-        pts_seconds = packet.pts * time_base
+        pts_seconds = pts * time_base
         is_keyframe = packet.is_keyframe
 
         frame_infos.append(
