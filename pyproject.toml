@@ -1,0 +1,70 @@
+[project]
+name = "avdec"
+dynamic = ["version"]
+description = "Batch video frame loader for ML training. Drop-in TorchCodec API in pure Python — NumPy output, no PyTorch required."
+readme = "README.md"
+license = "MIT"
+authors = [
+    { name = "Suhwan Choi", email = "milkclouds00@gmail.com" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Video",
+    "Topic :: Scientific/Engineering",
+    "Typing :: Typed",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "av>=13.0",
+    "numpy>=1.20",
+]
+
+[project.optional-dependencies]
+# Fast MP4 metadata reading (stts/ctts atoms)
+mp4 = [
+    "pymp4>=1.4.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "ruff>=0.3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-username/avdec"
+Documentation = "https://github.com/your-username/avdec#readme"
+Repository = "https://github.com/your-username/avdec"
+Issues = "https://github.com/your-username/avdec/issues"
+
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+raw-options = { root = ".." }
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/avdec/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/avdec"]
+
+[tool.ruff]
+line-length = 119
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+

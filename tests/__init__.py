@@ -1,0 +1,2 @@
+"""Tests for avdec package."""
+
