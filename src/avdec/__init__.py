@@ -6,7 +6,7 @@ Example:
     >>> from avdec import VideoDecoder
     >>> decoder = VideoDecoder("video.mp4")
     >>> frames = decoder.get_frames_at([0, 10, 20])
-    >>> print(frames.data.shape)  # (3, H, W, 3)
+    >>> print(frames.data.shape)  # (3, 3, H, W) for NCHW (default)
     >>> decoder.close()
 
 Diagnose videos for ML training:
@@ -15,7 +15,7 @@ Diagnose videos for ML training:
     >>> print(report)
 """
 
-from avdec._types import FrameBatch, FrameInfo, SeekMode, VideoStreamMetadata
+from avdec._types import Frame, FrameBatch, FrameInfo, SeekMode, VideoStreamMetadata
 from avdec.decoder import VideoDecoder
 from avdec.doctor import doctor
 
@@ -27,6 +27,7 @@ except ImportError:
 __all__ = [
     "VideoDecoder",
     "VideoStreamMetadata",
+    "Frame",
     "FrameBatch",
     "FrameInfo",
     "SeekMode",
