@@ -34,45 +34,43 @@ logger = logging.getLogger(__name__)
 PathLike = Union[str, Path]
 
 
-def _try_mp4_fast_read(source: PathLike) -> Optional[FrameIndex]:
-    """Try to read MP4 metadata using pymp4 (stts/ctts atoms).
+def _try_container_optimized_read(
+    source: PathLike,
+    container: "av.InputContainer",
+    stream_index: Optional[int] = None,
+) -> Optional[FrameIndex]:
+    """Try to read frame index using container-specific optimization.
 
-    This is much faster than scanning all packets because it only reads
-    the moov atom which contains all timing information.
+    Uses the modular container handler system for format-specific
+    optimizations (e.g., direct MP4 atom parsing).
 
     Args:
         source: Path to video file
+        container: Open PyAV container
+        stream_index: Video stream index
 
     Returns:
-        FrameIndex if successful, None if pymp4 not available or not MP4
+        FrameIndex if successful, None to fall back to packet scan
     """
     try:
-        import pymp4.parser  # noqa: F401
+        # Import here to avoid circular imports and allow lazy loading
+        from avdec.containers import get_handler
     except ImportError:
-        logger.debug("pymp4 not installed, falling back to packet scan")
+        logger.debug("Container handlers not available")
         return None
 
-    source_path = Path(source)
-    if source_path.suffix.lower() not in (".mp4", ".m4v", ".mov"):
+    handler = get_handler(source)
+    if handler is None:
         return None
 
     try:
-        return _parse_mp4_metadata(source_path)
+        frame_index = handler.build_frame_index(source, stream_index)
+        if frame_index is not None:
+            logger.debug(f"Used {handler.name} optimization for {source}")
+            return frame_index
     except Exception as e:
-        logger.debug(f"MP4 fast read failed: {e}, falling back to packet scan")
-        return None
+        logger.debug(f"{handler.name} optimization failed: {e}")
 
-
-def _parse_mp4_metadata(source: Path) -> Optional[FrameIndex]:
-    """Parse MP4 stts/ctts atoms to build frame index.
-
-    MP4 containers store timing in:
-    - stts: sample-to-time table (run-length encoded durations)
-    - ctts: composition time offset (DTS -> PTS conversion)
-    - stss: sync sample table (keyframe indices)
-    """
-    # Placeholder - full implementation requires traversing box hierarchy
-    # For now, return None to use fallback packet scan
     return None
 
 
@@ -162,22 +160,21 @@ def get_frame_index(
 ) -> FrameIndex:
     """Get frame index for a video source.
 
-    Tries fast metadata reading first (for MP4), falls back to packet scan.
+    Tries container-specific optimizations first, falls back to packet scan.
 
     Args:
         source: Path to video file
         container: Open PyAV container (used for fallback scan)
         stream_index: Absolute stream index in container. If None, uses first video stream.
-        force_scan: If True, skip fast read and always scan packets
+        force_scan: If True, skip optimizations and always scan packets
 
     Returns:
         FrameIndex with all frame timing information
     """
     if not force_scan:
-        # Try fast MP4 metadata read
-        frame_index = _try_mp4_fast_read(source)
+        # Try container-specific optimization (MP4, MKV, etc.)
+        frame_index = _try_container_optimized_read(source, container, stream_index)
         if frame_index is not None:
-            logger.debug(f"Used fast MP4 metadata read for {source}")
             return frame_index
 
     # Fallback to packet scan
