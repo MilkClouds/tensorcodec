@@ -32,7 +32,7 @@ class TorchCodecDecoder:
         fps: Optional[float] = None,
     ) -> np.ndarray:
         dec = TorchCodecVideoDecoder(video_path)
-        batch = dec.get_frames_played_in_range(start_seconds, stop_seconds, fps=fps)
+        batch = dec.get_frames_played_in_range(start_seconds, stop_seconds)
         return batch.data.numpy()  # NCHW uint8
 
     def get_video_duration(self, video_path: str) -> float:
