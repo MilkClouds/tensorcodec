@@ -1,21 +1,15 @@
-"""avdec - Batch video frame loader for ML training.
+"""avdec — Video frame loader for ML training.
 
-Drop-in TorchCodec API in pure Python — NumPy output, no PyTorch required.
+Pure-Python decoder using PyAV.  NumPy output, no PyTorch required.
 
 Example:
     >>> from avdec import VideoDecoder
-    >>> decoder = VideoDecoder("video.mp4")
-    >>> frames = decoder.get_frames_at([0, 10, 20])
-    >>> print(frames.data.shape)  # (3, 3, H, W) for NCHW (default)
-    >>> decoder.close()
-
-Diagnose videos for ML training:
-    >>> import avdec
-    >>> report = avdec.doctor("video.mp4")
-    >>> print(report)
+    >>> with VideoDecoder("video.mp4") as decoder:
+    ...     batch = decoder.get_frames_played_at([0.0, 0.5, 1.0])
+    ...     print(batch.data.shape)  # (3, 3, H, W) for NCHW
 """
 
-from avdec._types import Frame, FrameBatch, FrameInfo, SeekMode, VideoStreamMetadata
+from avdec._types import FrameBatch, VideoStreamMetadata
 from avdec.decoder import VideoDecoder
 from avdec.doctor import doctor
 
@@ -27,10 +21,7 @@ except ImportError:
 __all__ = [
     "VideoDecoder",
     "VideoStreamMetadata",
-    "Frame",
     "FrameBatch",
-    "FrameInfo",
-    "SeekMode",
     "doctor",
     "__version__",
 ]

@@ -1,203 +1,177 @@
-"""Tests for VideoDecoder."""
+"""Tests for VideoDecoder.
+
+Basic tests using a synthetic sample video created in conftest.py.
+"""
 
 import numpy as np
 import pytest
 
-from avdec import Frame, FrameBatch, SeekMode, VideoDecoder, VideoStreamMetadata
+from avdec import FrameBatch, VideoDecoder, VideoStreamMetadata
 
 
-class TestVideoDecoderBasic:
-    """Basic functionality tests."""
+class TestVideoDecoderInit:
+    """Test VideoDecoder initialization."""
 
-    def test_open_close(self, sample_video):
-        """Test basic open/close functionality."""
+    def test_open_video(self, sample_video):
+        """Test that a video can be opened successfully."""
         decoder = VideoDecoder(sample_video)
-        assert decoder.source == sample_video
+        assert decoder.metadata.width == 320
+        assert decoder.metadata.height == 240
+        assert decoder.metadata.num_frames == 30
+        assert float(decoder.metadata.average_rate) == pytest.approx(30.0, rel=0.1)
         decoder.close()
+
+    def test_open_nonexistent_file(self, tmp_path):
+        """Test that opening a nonexistent file raises an error."""
+        with pytest.raises(Exception):
+            VideoDecoder(tmp_path / "nonexistent.mp4")
 
     def test_context_manager(self, sample_video):
         """Test context manager protocol."""
         with VideoDecoder(sample_video) as decoder:
-            assert decoder.source == sample_video
+            assert decoder.metadata.num_frames == 30
 
-    def test_metadata(self, sample_video):
-        """Test metadata extraction."""
+
+class TestVideoDecoderMetadata:
+    """Test metadata extraction."""
+
+    def test_metadata_fields(self, sample_video):
+        """Test that all metadata fields are populated."""
         with VideoDecoder(sample_video) as decoder:
             meta = decoder.metadata
             assert isinstance(meta, VideoStreamMetadata)
             assert meta.width == 320
             assert meta.height == 240
-            assert meta.average_fps == pytest.approx(30.0, rel=0.1)
-            assert meta.num_frames == 30
-            # TorchCodec extended fields
-            assert meta.begin_stream_seconds == pytest.approx(0.0, abs=0.01)
-            assert meta.end_stream_seconds is not None
+            assert meta.num_frames > 0
+            assert float(meta.duration_seconds) > 0
+            assert float(meta.average_rate) > 0
+            assert float(meta.begin_stream_seconds) >= 0
+            assert float(meta.end_stream_seconds) > float(meta.begin_stream_seconds)
 
-    def test_len(self, sample_video):
-        """Test __len__ returns frame count."""
+
+class TestGetFramesPlayedAt:
+    """Test get_frames_played_at method."""
+
+    def test_single_timestamp(self, sample_video):
+        """Test decoding a single frame by timestamp."""
         with VideoDecoder(sample_video) as decoder:
-            assert len(decoder) == 30
-
-    def test_getitem_single(self, sample_video):
-        """Test single frame indexing (NCHW default)."""
-        with VideoDecoder(sample_video) as decoder:
-            frame = decoder[0]
-            assert isinstance(frame, np.ndarray)
-            # Default is NCHW: (C, H, W)
-            assert frame.shape == (3, 240, 320)
-            assert frame.dtype == np.uint8
-
-    def test_getitem_single_nhwc(self, sample_video):
-        """Test single frame indexing with NHWC."""
-        with VideoDecoder(sample_video, dimension_order="NHWC") as decoder:
-            frame = decoder[0]
-            assert frame.shape == (240, 320, 3)
-
-    def test_getitem_negative(self, sample_video):
-        """Test negative indexing."""
-        with VideoDecoder(sample_video) as decoder:
-            frame = decoder[-1]
-            # Default is NCHW: (C, H, W)
-            assert frame.shape == (3, 240, 320)
-
-    def test_get_frames_at(self, sample_video):
-        """Test batch frame retrieval by index (NCHW default)."""
-        with VideoDecoder(sample_video) as decoder:
-            batch = decoder.get_frames_at([0, 10, 20])
+            batch = decoder.get_frames_played_at([0.0])
             assert isinstance(batch, FrameBatch)
-            assert len(batch) == 3
-            # Default is NCHW: (N, C, H, W)
-            assert batch.data.shape == (3, 3, 240, 320)
-            assert len(batch.pts_seconds) == 3
-            assert len(batch.duration_seconds) == 3
+            assert batch.data.shape == (1, 3, 240, 320)  # NCHW
+            assert len(batch.pts_seconds) == 1
+            assert len(batch.duration_seconds) == 1
 
-    def test_get_frames_at_nhwc(self, sample_video):
-        """Test batch frame retrieval with NHWC."""
-        with VideoDecoder(sample_video, dimension_order="NHWC") as decoder:
-            batch = decoder.get_frames_at([0, 10, 20])
-            assert batch.data.shape == (3, 240, 320, 3)
-
-    def test_get_frames_at_empty(self, sample_video):
-        """Test empty index list."""
+    def test_multiple_timestamps(self, sample_video):
+        """Test decoding multiple frames by timestamp."""
         with VideoDecoder(sample_video) as decoder:
-            batch = decoder.get_frames_at([])
-            assert len(batch) == 0
+            batch = decoder.get_frames_played_at([0.0, 0.1, 0.5])
+            assert batch.data.shape[0] == 3
+            assert batch.data.shape[1] == 3  # Channels
+            assert len(batch.pts_seconds) == 3
+
+    def test_empty_list(self, sample_video):
+        """Test with empty timestamp list."""
+        with VideoDecoder(sample_video) as decoder:
+            batch = decoder.get_frames_played_at([])
             assert batch.data.shape[0] == 0
 
-    def test_get_frame_at(self, sample_video):
-        """Test single frame retrieval."""
+    def test_out_of_range_timestamp(self, sample_video):
+        """Test that out-of-range timestamps raise ValueError."""
         with VideoDecoder(sample_video) as decoder:
-            frame = decoder.get_frame_at(0)
-            assert isinstance(frame, Frame)
-            assert frame.data.shape == (3, 240, 320)  # NCHW default
-            assert frame.pts_seconds >= 0.0
-            assert frame.duration_seconds > 0.0
-
-    def test_get_frames_played_at(self, sample_video):
-        """Test batch frame retrieval by timestamp."""
-        with VideoDecoder(sample_video) as decoder:
-            batch = decoder.get_frames_played_at([0.0, 0.5])
-            assert isinstance(batch, FrameBatch)
-            assert len(batch) == 2
-
-    def test_get_frame_played_at(self, sample_video):
-        """Test single frame retrieval by timestamp."""
-        with VideoDecoder(sample_video) as decoder:
-            frame = decoder.get_frame_played_at(0.0)
-            assert isinstance(frame, Frame)
-            assert frame.data.shape == (3, 240, 320)  # NCHW default
-
-    def test_get_frames_played_at_exceeds_duration(self, sample_video):
-        """Test error when timestamp exceeds duration."""
-        with VideoDecoder(sample_video) as decoder:
-            # Now raises IndexError with TorchCodec-compatible message
-            with pytest.raises(IndexError, match="Invalid pts in seconds"):
+            with pytest.raises(ValueError):
                 decoder.get_frames_played_at([100.0])
 
-    def test_get_frames_in_range(self, sample_video):
-        """Test frame range retrieval."""
+    def test_negative_timestamp(self, sample_video):
+        """Test that negative timestamps raise ValueError."""
         with VideoDecoder(sample_video) as decoder:
-            batch = decoder.get_frames_in_range(0, 5)
-            assert len(batch) == 5
-            assert batch.data.shape == (5, 3, 240, 320)  # NCHW default
+            with pytest.raises(ValueError):
+                decoder.get_frames_played_at([-0.1])
 
-    def test_get_frames_played_in_range(self, sample_video):
-        """Test frame range retrieval by timestamp."""
+    def test_playback_semantics(self, sample_video):
+        """Test that playback semantics are correct.
+
+        frame[i].pts <= timestamp < frame[i+1].pts should return frame[i].
+        """
+        with VideoDecoder(sample_video) as decoder:
+            batch = decoder.get_frames_played_at([0.0])
+            assert batch.pts_seconds[0] == pytest.approx(0.0, abs=0.01)
+
+    def test_timestamp_just_before_end(self, sample_video):
+        """Test timestamp just before end_stream_seconds succeeds."""
+        with VideoDecoder(sample_video) as decoder:
+            end = float(decoder.metadata.end_stream_seconds)
+            batch = decoder.get_frames_played_at([end - 0.001])
+            assert batch.data.shape[0] == 1
+
+    def test_timestamp_at_end_raises(self, sample_video):
+        """Test timestamp == end_stream_seconds raises ValueError."""
+        with VideoDecoder(sample_video) as decoder:
+            end = float(decoder.metadata.end_stream_seconds)
+            with pytest.raises(ValueError):
+                decoder.get_frames_played_at([end])
+
+
+class TestGetFramesPlayedInRange:
+    """Test get_frames_played_in_range method."""
+
+    def test_basic_range(self, sample_video):
+        """Test basic range decoding."""
         with VideoDecoder(sample_video) as decoder:
             batch = decoder.get_frames_played_in_range(0.0, 0.5)
-            assert len(batch) > 0
+            assert isinstance(batch, FrameBatch)
+            assert batch.data.shape[0] > 0
 
-
-class TestSeekMode:
-    """Test different seek modes."""
-
-    def test_exact_mode(self, sample_video):
-        """Test exact seek mode builds frame index."""
-        with VideoDecoder(sample_video, seek_mode=SeekMode.EXACT) as decoder:
-            assert decoder._frame_index is not None
-            assert len(decoder._frame_index) == 30
-
-    def test_approximate_mode(self, sample_video):
-        """Test approximate seek mode skips frame index."""
-        with VideoDecoder(sample_video, seek_mode=SeekMode.APPROXIMATE) as decoder:
-            assert decoder._frame_index is None
-            # Should still work using FPS-based calculation
-            frame = decoder[0]
-            # Default is NCHW: (C, H, W)
-            assert frame.shape == (3, 240, 320)
-
-
-class TestDimensionOrder:
-    """Test dimension order parameter."""
-
-    def test_invalid_dimension_order(self, sample_video):
-        """Test invalid dimension order raises error."""
-        with pytest.raises(ValueError, match="Invalid dimension_order"):
-            VideoDecoder(sample_video, dimension_order="INVALID")
-
-
-class TestFFmpegThreads:
-    """Test num_ffmpeg_threads parameter."""
-
-    def test_default_threads(self, sample_video):
-        """Test default thread count (0 = auto)."""
+    def test_full_range(self, sample_video):
+        """Test decoding entire video."""
         with VideoDecoder(sample_video) as decoder:
-            # Default is 0 (auto-detect)
-            assert decoder._num_ffmpeg_threads == 0
-            # Should still decode correctly
-            frame = decoder[0]
-            assert frame.shape == (3, 240, 320)
+            meta = decoder.metadata
+            batch = decoder.get_frames_played_in_range(
+                float(meta.begin_stream_seconds),
+                float(meta.end_stream_seconds),
+            )
+            assert batch.data.shape[0] > 0
 
-    def test_explicit_threads(self, sample_video):
-        """Test explicit thread count."""
-        with VideoDecoder(sample_video, num_ffmpeg_threads=4) as decoder:
-            assert decoder._num_ffmpeg_threads == 4
-            frame = decoder[0]
-            assert frame.shape == (3, 240, 320)
-
-
-class TestSeekOptimization:
-    """Test seek optimization for sequential access."""
-
-    def test_sequential_access_no_seek(self, sample_video):
-        """Test that sequential access avoids seeking."""
+    def test_invalid_range(self, sample_video):
+        """Test that start > stop raises ValueError."""
         with VideoDecoder(sample_video) as decoder:
-            # First access
-            _ = decoder.get_frames_at([0])
-            assert decoder._last_decoded_index is not None
+            with pytest.raises(ValueError):
+                decoder.get_frames_played_in_range(0.5, 0.1)
 
-            # Sequential access should use optimization
-            _ = decoder.get_frames_at([1, 2, 3])
-            # Should have updated last decoded index
-            assert decoder._last_decoded_index >= 3
-
-    def test_random_access_resets(self, sample_video):
-        """Test that random access works correctly."""
+    def test_with_fps(self, sample_video):
+        """Test resampled decoding with fps parameter."""
         with VideoDecoder(sample_video) as decoder:
-            # Access frame 0
-            _ = decoder.get_frames_at([0])
-            # Jump to frame 20 (should seek)
-            batch = decoder.get_frames_at([20])
-            assert len(batch) == 1
-            assert decoder._last_decoded_index >= 20
+            batch = decoder.get_frames_played_in_range(0.0, 0.5, fps=10.0)
+            assert isinstance(batch, FrameBatch)
+            # At 10fps over 0.5s we expect ~5 frames
+            assert batch.data.shape[0] == 5
+
+
+class TestFrameBatch:
+    """Test FrameBatch properties."""
+
+    def test_nchw_format(self, sample_video):
+        """Test that output is NCHW."""
+        with VideoDecoder(sample_video) as decoder:
+            batch = decoder.get_frames_played_at([0.0])
+            assert batch.data.shape == (1, 3, 240, 320)
+
+    def test_dtype(self, sample_video):
+        """Test that output dtype is uint8."""
+        with VideoDecoder(sample_video) as decoder:
+            batch = decoder.get_frames_played_at([0.0])
+            assert batch.data.dtype == np.uint8
+
+    def test_pts_dtype(self, sample_video):
+        """Test that PTS is float64."""
+        with VideoDecoder(sample_video) as decoder:
+            batch = decoder.get_frames_played_at([0.0])
+            assert batch.pts_seconds.dtype == np.float64
+
+    def test_repr(self, sample_video):
+        """Test FrameBatch __repr__."""
+        with VideoDecoder(sample_video) as decoder:
+            batch = decoder.get_frames_played_at([0.0])
+            r = repr(batch)
+            assert "FrameBatch" in r
+            assert "data (shape)" in r
 

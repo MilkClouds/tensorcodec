@@ -1,724 +1,386 @@
-"""TorchCodec-compatible video decoder using PyAV.
+"""Video decoder using PyAV with playback-frame semantics.
 
-# =============================================================================
-# TorchCodec Compatibility Notes
-# =============================================================================
-# This module implements a TorchCodec-compatible video decoder.
-# The following interfaces match torchcodec.decoders.VideoDecoder:
-#
-#   - VideoDecoder class              -> torchcodec.decoders.VideoDecoder
-#   - VideoDecoder.get_frame_at()     -> VideoDecoder.get_frame_at()
-#   - VideoDecoder.get_frames_at()    -> VideoDecoder.get_frames_at()
-#   - VideoDecoder.get_frame_played_at() -> VideoDecoder.get_frame_played_at()
-#   - VideoDecoder.get_frames_played_at() -> VideoDecoder.get_frames_played_at()
-#   - VideoDecoder.get_frames_in_range() -> VideoDecoder.get_frames_in_range()
-#   - VideoDecoder.get_frames_played_in_range() -> VideoDecoder.get_frames_played_in_range()
-#   - VideoDecoder.metadata           -> VideoDecoder.metadata
-#   - VideoDecoder[idx]               -> VideoDecoder.__getitem__()
-#   - len(VideoDecoder)               -> VideoDecoder.__len__()
-#   - seek_mode parameter             -> VideoDecoder(seek_mode=...)
-#   - dimension_order parameter       -> VideoDecoder(dimension_order=...)
-#
-# DO NOT modify these interfaces without verifying TorchCodec compatibility.
-# =============================================================================
+Mirrors the interface from MediaRef's ``PyAVVideoDecoder``.
+
+Core API:
+    - ``get_frames_played_at(seconds)``  — frames at specific timestamps
+    - ``get_frames_played_in_range(start, stop, fps=None)`` — frames in a time window
+
+Example:
+    >>> with VideoDecoder("video.mp4") as decoder:
+    ...     batch = decoder.get_frames_played_at([0.0, 0.5, 1.0])
+    ...     print(batch.data.shape)  # (3, 3, H, W) NCHW
 """
 
 from __future__ import annotations
 
-import bisect
+import gc
+from fractions import Fraction
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 import av
 import numpy as np
-import numpy.typing as npt
 
-from avdec._metadata import get_frame_index
-from avdec._types import (
-    DimensionOrder,
-    Frame,
-    FrameBatch,
-    FrameIndex,
-    SeekMode,
-    VideoStreamMetadata,
-)
+from avdec._types import FrameBatch, VideoStreamMetadata
 
 PathLike = Union[str, Path]
 
+# Garbage collection interval for PyAV reference cycles.
+# Reference: https://github.com/pytorch/vision/blob/428a54c96e82226c0d2d8522e9cbfdca64283da0/torchvision/io/video.py#L53-L55
+_CALLED_TIMES = 0
+_GC_COLLECTION_INTERVAL = 10
+
+
+def _convert_av_frames_to_nchw(av_frames: List[av.VideoFrame]) -> List[np.ndarray]:
+    """Convert a list of PyAV frames to NCHW numpy arrays (RGB)."""
+    frames = []
+    for frame in av_frames:
+        rgb = frame.to_ndarray(format="rgb24")  # HWC
+        frames.append(np.transpose(rgb, (2, 0, 1)))  # CHW
+    return frames
+
 
 class VideoDecoder:
-    """TorchCodec-compatible video decoder using PyAV.
+    """Video decoder for ML training workloads.
 
-    [TorchCodec Compatibility: torchcodec.decoders.VideoDecoder]
-
-    This decoder implements TorchCodec's exact mode semantics:
-    - Pre-scans all packets to build frame index
-    - Uses playback frame semantics: frame[i].pts <= timestamp < frame[i+1].pts
-    - Supports efficient batch frame loading
+    Uses playback-frame semantics: returns frame *i* where
+    ``frame[i].pts <= timestamp < frame[i+1].pts``.
 
     Args:
-        source: Path to video file
-        seek_mode: SeekMode.EXACT (default) or SeekMode.APPROXIMATE
-            [TorchCodec Compatibility: VideoDecoder(seek_mode=...)]
-        stream_index: Video stream index. If None, selects the "best" stream
-            using FFmpeg's av_find_best_stream()
-        dimension_order: Output dimension order, "NCHW" (default) or "NHWC"
-            [TorchCodec Compatibility: VideoDecoder(dimension_order=...)]
-        num_ffmpeg_threads: Number of threads for FFmpeg decoding.
-            0 = auto-detect based on CPU cores (default).
-            [TorchCodec Compatibility: VideoDecoder(num_ffmpeg_threads=...)]
+        source: Path to video file or URL.
 
     Example:
-        >>> decoder = VideoDecoder("video.mp4")
-        >>> frames = decoder.get_frames_at([0, 10, 20])
-        >>> print(frames.data.shape)  # (3, 3, H, W) for NCHW
-        >>> decoder.close()
+        >>> with VideoDecoder("video.mp4") as decoder:
+        ...     batch = decoder.get_frames_played_at([0.0, 0.5, 1.0])
+        ...     print(batch.data.shape)  # (3, 3, H, W) NCHW
     """
 
-    def __init__(
-        self,
-        source: PathLike,
-        *,
-        seek_mode: SeekMode = SeekMode.EXACT,
-        stream_index: Optional[int] = None,
-        dimension_order: DimensionOrder = "NCHW",
-        num_ffmpeg_threads: int = 0,
-    ):
-        # Validate dimension_order
-        if dimension_order not in ("NCHW", "NHWC"):
-            raise ValueError(
-                f"Invalid dimension_order ({dimension_order}). "
-                "Supported values are 'NCHW', 'NHWC'."
-            )
-
-        self._source = Path(source) if isinstance(source, str) else source
-        self._seek_mode = seek_mode
-        self._dimension_order = dimension_order
-        self._num_ffmpeg_threads = num_ffmpeg_threads
-        self._container: av.InputContainer = av.open(str(self._source), "r")
-        self._stream = self._select_video_stream(stream_index)
-        self._stream_index = self._stream.index
-
-        # Configure FFmpeg threading (must be before decoding starts)
-        # [TorchCodec Compatibility: num_ffmpeg_threads parameter]
-        self._stream.thread_count = num_ffmpeg_threads
-        self._stream.thread_type = "AUTO"  # Use both SLICE and FRAME threading
-
-        # Build frame index for exact mode (before metadata extraction)
-        if seek_mode == SeekMode.EXACT:
-            self._frame_index: Optional[FrameIndex] = get_frame_index(
-                self._source, self._container, self._stream_index
-            )
-        else:
-            self._frame_index = None
-
-        # Extract metadata (uses frame_index if available)
+    def __init__(self, source: PathLike):
+        self._source = source
+        self._container: av.InputContainer = av.open(str(source), "r")
         self._metadata = self._extract_metadata()
 
-        # Cache begin/end stream seconds for boundary validation
-        self._begin_stream_seconds = self._metadata.begin_stream_seconds
-        self._end_stream_seconds = (
-            self._metadata.end_stream_seconds
-            if self._metadata.end_stream_seconds is not None
-            else self._metadata.duration_seconds
-        )
-
-        # Track last decoded frame index for seek optimization
-        self._last_decoded_index: Optional[int] = None
-
-    def _select_video_stream(self, stream_index: Optional[int]) -> av.VideoStream:
-        """Select video stream by index or find the best one.
-
-        [TorchCodec Compatibility: Best stream selection]
-        If stream_index is None, uses FFmpeg's av_find_best_stream() via PyAV.
-        This matches TorchCodec's SingleStreamDecoder::getBestStreamIndex().
-        """
-        video_streams = self._container.streams.video
-        if not video_streams:
-            raise ValueError("No video streams found in container")
-
-        if stream_index is not None:
-            # Find stream by absolute index in container
-            for stream in self._container.streams:
-                if stream.index == stream_index:
-                    if stream.type != 'video':
-                        raise ValueError(f"Stream {stream_index} is not a video stream")
-                    return stream
-            raise ValueError(f"Stream index {stream_index} not found in container")
-
-        # Use FFmpeg's av_find_best_stream() via PyAV
-        best_stream = self._container.streams.best('video')
-        if best_stream is None:
-            raise ValueError("No best video stream found")
-        return best_stream
+    # ------------------------------------------------------------------
+    # Metadata
+    # ------------------------------------------------------------------
 
     def _extract_metadata(self) -> VideoStreamMetadata:
         """Extract video stream metadata from container.
 
-        [TorchCodec Compatibility: VideoStreamMetadata fields]
-        Populates all TorchCodec metadata fields with appropriate fallback logic.
+        Decodes only the first frame to get accurate ``begin_stream_seconds``.
+        Uses header metadata for duration / end_stream_seconds.
         """
-        stream = self._stream
         container = self._container
+        if not container.streams.video:
+            raise ValueError(f"No video streams found in {self._source}")
+        stream = container.streams.video[0]
+
+        # Frame rate
+        if stream.average_rate:
+            average_rate = Fraction(stream.average_rate)
+        else:
+            raise ValueError("Failed to determine average rate")
 
         # Duration from header
-        duration_seconds_from_header: Optional[float] = None
         if stream.duration and stream.time_base:
-            duration_seconds_from_header = float(stream.duration * stream.time_base)
+            duration_seconds = Fraction(stream.duration * stream.time_base)
         elif container.duration:
-            duration_seconds_from_header = container.duration / av.time_base
-
-        # FPS from header
-        average_fps_from_header: Optional[float] = None
-        if stream.average_rate:
-            average_fps_from_header = float(stream.average_rate)
-
-        # Frame count from header
-        num_frames_from_header: Optional[int] = stream.frames if stream.frames else None
-
-        # Compute values from content (frame index) if available
-        num_frames_from_content: Optional[int] = None
-        begin_stream_seconds_from_content: Optional[float] = None
-        end_stream_seconds_from_content: Optional[float] = None
-
-        if self._frame_index and self._frame_index.frame_infos:
-            num_frames_from_content = len(self._frame_index.frame_infos)
-            begin_stream_seconds_from_content = self._frame_index.frame_infos[0].pts
-            last_frame = self._frame_index.frame_infos[-1]
-            if last_frame.next_pts != float("inf"):
-                end_stream_seconds_from_content = last_frame.next_pts
-            else:
-                # Estimate last frame duration from average fps
-                if average_fps_from_header:
-                    end_stream_seconds_from_content = (
-                        last_frame.pts + 1.0 / average_fps_from_header
-                    )
-                else:
-                    end_stream_seconds_from_content = last_frame.pts
-
-        # Compute final values with fallback logic (matching TorchCodec)
-        # num_frames: prefer content, fallback to header, fallback to duration*fps
-        if num_frames_from_content is not None:
-            num_frames = num_frames_from_content
-        elif num_frames_from_header is not None:
-            num_frames = num_frames_from_header
-        elif duration_seconds_from_header and average_fps_from_header:
-            num_frames = int(duration_seconds_from_header * average_fps_from_header)
+            duration_seconds = Fraction(container.duration, av.time_base)
         else:
-            raise ValueError("Failed to determine frame count")
+            raise ValueError("Failed to determine duration")
 
-        # duration_seconds: prefer content-based, fallback to header
-        if (
-            begin_stream_seconds_from_content is not None
-            and end_stream_seconds_from_content is not None
-        ):
-            duration_seconds = (
-                end_stream_seconds_from_content - begin_stream_seconds_from_content
-            )
-        elif duration_seconds_from_header is not None:
-            duration_seconds = duration_seconds_from_header
-        else:
-            raise ValueError("Failed to determine video duration")
+        # Decode first frame to get accurate begin_stream_seconds
+        container.seek(0)
+        first_pts = Fraction(0)
+        for frame in container.decode(video=0):
+            if frame.time is not None:
+                first_pts = Fraction(frame.time).limit_denominator(1_000_000)
+            break
+        container.seek(0)
 
-        # average_fps: prefer content-based, fallback to header
-        if num_frames_from_content is not None and duration_seconds > 0:
-            average_fps = num_frames_from_content / duration_seconds
-        elif average_fps_from_header is not None:
-            average_fps = average_fps_from_header
-        else:
-            raise ValueError("Failed to determine average frame rate")
+        begin_stream_seconds = first_pts
+        end_stream_seconds = begin_stream_seconds + duration_seconds
 
-        # begin_stream_seconds: prefer content, fallback to 0
-        begin_stream_seconds = (
-            begin_stream_seconds_from_content
-            if begin_stream_seconds_from_content is not None
-            else 0.0
-        )
-
-        # end_stream_seconds: prefer content, fallback to duration
-        end_stream_seconds = (
-            end_stream_seconds_from_content
-            if end_stream_seconds_from_content is not None
-            else duration_seconds
+        num_frames = (
+            stream.frames
+            if stream.frames
+            else int(duration_seconds * average_rate)
         )
 
         return VideoStreamMetadata(
             num_frames=num_frames,
             duration_seconds=duration_seconds,
-            average_fps=average_fps,
+            average_rate=average_rate,
             width=stream.width,
             height=stream.height,
-            codec=stream.codec_context.name if stream.codec_context else None,
-            time_base=stream.time_base,
-            # TorchCodec extended fields
             begin_stream_seconds=begin_stream_seconds,
             end_stream_seconds=end_stream_seconds,
-            num_frames_from_header=num_frames_from_header,
-            num_frames_from_content=num_frames_from_content,
-            average_fps_from_header=average_fps_from_header,
-            duration_seconds_from_header=duration_seconds_from_header,
         )
 
     @property
     def metadata(self) -> VideoStreamMetadata:
-        """Access video stream metadata.
-
-        [TorchCodec Compatibility: VideoDecoder.metadata]
-        Returns metadata matching TorchCodec's VideoStreamMetadata structure.
-        """
+        """Access video stream metadata."""
         return self._metadata
 
-    @property
-    def source(self) -> Path:
-        """Source file path."""
-        return self._source
-
-    def __len__(self) -> int:
-        """Return number of frames.
-
-        [TorchCodec Compatibility: len(VideoDecoder)]
-        """
-        if self._frame_index:
-            return len(self._frame_index)
-        return self._metadata.num_frames
-
-    def _seconds_to_index(self, seconds: float) -> int:
-        """Convert timestamp to frame index using TorchCodec semantics.
-
-        [TorchCodec Compatibility: Playback frame semantics]
-        Finds frame i where: frame[i].pts <= seconds < frame[i+1].pts
-
-        This implements TorchCodec's getPtsSecondsForFrame() logic using
-        bisect_right on the PTS list:
-        - bisect_right returns the insertion point after any existing entries equal to seconds
-        - Subtracting 1 gives us the frame whose PTS is <= seconds
-
-        Reference: TorchCodec's VideoDecoder.cpp, getFrameAtIndexInternal()
-
-        Args:
-            seconds: Timestamp in seconds
-
-        Returns:
-            Frame index
-
-        Raises:
-            ValueError: If timestamp is before first frame or after video duration
-        """
-        if self._frame_index is None:
-            # Approximate mode: use average FPS
-            idx = int(seconds * self._metadata.average_fps)
-            return max(0, min(idx, self._metadata.num_frames - 1))
-
-        pts_list = self._frame_index.pts_list
-        if not pts_list:
-            raise ValueError("Empty frame index")
-
-        # bisect_right returns insertion point after equal values
-        # So bisect_right - 1 gives us the frame with pts <= seconds
-        idx = bisect.bisect_right(pts_list, seconds) - 1
-
-        if idx < 0:
-            raise ValueError(
-                f"Timestamp {seconds}s is before first frame (pts={pts_list[0]}s)"
-            )
-
-        # For timestamps beyond last frame, return last frame
-        # (TorchCodec behavior: last frame extends to infinity)
-        return min(idx, len(pts_list) - 1)
-
-    def _find_keyframe_before(self, frame_index: int) -> int:
-        """Find the keyframe at or before the given frame index."""
-        if self._frame_index is None or not self._frame_index.keyframe_indices:
-            return 0
-
-        keyframes = self._frame_index.keyframe_indices
-        # Find rightmost keyframe <= frame_index
-        pos = bisect.bisect_right(keyframes, frame_index)
-        if pos == 0:
-            return keyframes[0]
-        return keyframes[pos - 1]
-
-    def _empty_frame_batch(self) -> FrameBatch:
-        """Return an empty FrameBatch with correct dimension order."""
-        h, w = self._metadata.height, self._metadata.width
-        if self._dimension_order == "NCHW":
-            shape = (0, 3, h, w)
-        else:
-            shape = (0, h, w, 3)
+    def _create_empty_batch(self) -> FrameBatch:
+        """Create an empty FrameBatch with correct spatial dimensions."""
         return FrameBatch(
-            data=np.empty(shape, dtype=np.uint8),
+            data=np.empty((0, 3, self._metadata.height, self._metadata.width), dtype=np.uint8),
             pts_seconds=np.array([], dtype=np.float64),
             duration_seconds=np.array([], dtype=np.float64),
-            frame_indices=np.array([], dtype=np.int64),
         )
 
-    def get_frame_at(self, index: int) -> Frame:
-        """Return a single frame at the given index.
-
-        [TorchCodec Compatibility: VideoDecoder.get_frame_at()]
-
-        Args:
-            index: The index of the frame to retrieve.
-
-        Returns:
-            Frame: The frame at the given index.
-        """
-        batch = self.get_frames_at([index])
-        return Frame(
-            data=batch.data[0],
-            pts_seconds=float(batch.pts_seconds[0]),
-            duration_seconds=float(batch.duration_seconds[0]),
-        )
-
-    def get_frames_at(self, indices: List[int]) -> FrameBatch:
-        """Retrieve frames at specific frame indices.
-
-        [TorchCodec Compatibility: VideoDecoder.get_frames_at()]
-        Returns frames at given indices, matching TorchCodec's exact mode behavior.
-
-        Args:
-            indices: List of frame indices to retrieve
-
-        Returns:
-            FrameBatch containing frame data and timing information
-        """
-        if not indices:
-            return self._empty_frame_batch()
-
-        # Normalize negative indices using Python slice semantics
-        num_frames = len(self)
-        normalized_indices = []
-        for idx in indices:
-            if idx < 0:
-                idx = num_frames + idx
-            if idx < 0 or idx >= num_frames:
-                raise IndexError(f"Frame index {idx} out of range [0, {num_frames})")
-            normalized_indices.append(idx)
-
-        # Convert indices to timestamps using frame index
-        if self._frame_index is not None:
-            seconds = [self._frame_index.frame_infos[idx].pts for idx in normalized_indices]
-        else:
-            # Approximate mode
-            seconds = [idx / self._metadata.average_fps for idx in normalized_indices]
-
-        return self._decode_frames(normalized_indices, seconds)
-
-    def get_frame_played_at(self, seconds: float) -> Frame:
-        """Return a single frame played at the given timestamp in seconds.
-
-        [TorchCodec Compatibility: VideoDecoder.get_frame_played_at()]
-
-        Args:
-            seconds: The timestamp in seconds when the frame is played.
-
-        Returns:
-            Frame: The frame that is played at the given timestamp.
-
-        Raises:
-            IndexError: If timestamp is outside valid range.
-        """
-        # TorchCodec boundary validation
-        if not self._begin_stream_seconds <= seconds < self._end_stream_seconds:
-            raise IndexError(
-                f"Invalid pts in seconds: {seconds}. "
-                f"It must be greater than or equal to {self._begin_stream_seconds} "
-                f"and less than {self._end_stream_seconds}."
-            )
-
-        batch = self.get_frames_played_at([seconds])
-        return Frame(
-            data=batch.data[0],
-            pts_seconds=float(batch.pts_seconds[0]),
-            duration_seconds=float(batch.duration_seconds[0]),
-        )
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def get_frames_played_at(self, seconds: List[float]) -> FrameBatch:
-        """Retrieve frames at specific timestamps.
+        """Retrieve frames that would be displayed at specific timestamps.
 
-        [TorchCodec Compatibility: VideoDecoder.get_frames_played_at()]
-        Uses TorchCodec's playback frame semantics:
-        Returns frame i where frame[i].pts <= timestamp < frame[i+1].pts
-
-        This is the core timestamp-to-frame mapping that must match TorchCodec exactly.
+        Uses playback-frame semantics: returns frame *i* where
+        ``frame[i].pts <= timestamp < frame[i+1].pts``.
 
         Args:
-            seconds: List of timestamps in seconds
+            seconds: List of timestamps in seconds.
 
         Returns:
-            FrameBatch containing frame data and timing information
+            FrameBatch with frame data in NCHW format.
 
         Raises:
-            IndexError: If any timestamp is outside valid range
+            ValueError: If any timestamp is outside
+                ``[begin_stream_seconds, end_stream_seconds)``.
         """
         if not seconds:
-            return self._empty_frame_batch()
+            return self._create_empty_batch()
 
-        # TorchCodec boundary validation for each timestamp
-        for s in seconds:
-            if not self._begin_stream_seconds <= s < self._end_stream_seconds:
-                raise IndexError(
-                    f"Invalid pts in seconds: {s}. "
-                    f"It must be greater than or equal to {self._begin_stream_seconds} "
-                    f"and less than {self._end_stream_seconds}."
-                )
+        # Validate timestamps
+        begin_stream = float(self._metadata.begin_stream_seconds)
+        end_stream = float(self._metadata.end_stream_seconds)  # type: ignore[arg-type]
+        for t in seconds:
+            if t < begin_stream:
+                raise ValueError(f"Timestamp {t}s < begin_stream_seconds ({begin_stream}s)")
+            if t >= end_stream:
+                raise ValueError(f"Timestamp {t}s >= end_stream_seconds ({end_stream}s)")
 
-        # Convert timestamps to frame indices
-        indices = [self._seconds_to_index(s) for s in seconds]
+        # Get frames using playback semantics
+        av_frames = self._get_frames_played_at(seconds)
 
-        return self._decode_frames(indices, seconds)
+        # Convert to RGB numpy arrays in NCHW format
+        frames = _convert_av_frames_to_nchw(av_frames)
 
-    def get_frames_in_range(
-        self, start: int, stop: int, step: int = 1
-    ) -> FrameBatch:
-        """Return multiple frames at the given index range.
+        pts_list = [float(frame.time) for frame in av_frames]
+        duration = float(1.0 / self._metadata.average_rate)
 
-        [TorchCodec Compatibility: VideoDecoder.get_frames_in_range()]
-        Frames are in [start, stop).
-
-        Args:
-            start: Index of the first frame to retrieve.
-            stop: End of indexing range (exclusive).
-            step: Step size between frames. Default: 1.
-
-        Returns:
-            FrameBatch: The frames within the specified range.
-        """
-        # Use Python slice semantics for negative indices
-        num_frames = len(self)
-        start, stop, step = slice(start, stop, step).indices(num_frames)
-        indices = list(range(start, stop, step))
-        return self.get_frames_at(indices)
+        return FrameBatch(
+            data=np.stack(frames, axis=0),
+            pts_seconds=np.array(pts_list, dtype=np.float64),
+            duration_seconds=np.full(len(seconds), duration, dtype=np.float64),
+        )
 
     def get_frames_played_in_range(
         self,
         start_seconds: float,
         stop_seconds: float,
+        fps: Optional[float] = None,
     ) -> FrameBatch:
-        """Returns multiple frames in the given time range.
-
-        [TorchCodec Compatibility: VideoDecoder.get_frames_played_in_range()]
-        Frames are in the half open range [start_seconds, stop_seconds).
+        """Return frames in the half-open range ``[start_seconds, stop_seconds)``.
 
         Args:
-            start_seconds: Time, in seconds, of the start of the range.
-            stop_seconds: Time, in seconds, of the end of the range (exclusive).
+            start_seconds: Start of the range (inclusive), in seconds.
+            stop_seconds: End of the range (exclusive), in seconds.
+            fps: If specified, resample output to this frame rate by
+                duplicating/dropping frames. If ``None``, returns frames
+                at the source video's native rate.
 
         Returns:
-            FrameBatch: The frames within the specified range.
+            FrameBatch with frame data in NCHW format.
 
         Raises:
-            ValueError: If start_seconds > stop_seconds or range is invalid.
+            ValueError: If the range parameters are invalid.
         """
-        if start_seconds > stop_seconds:
+        begin_stream = float(self._metadata.begin_stream_seconds)
+        end_stream = float(self._metadata.end_stream_seconds)  # type: ignore[arg-type]
+
+        if not start_seconds <= stop_seconds:
             raise ValueError(
                 f"Invalid start seconds: {start_seconds}. "
                 f"It must be less than or equal to stop seconds ({stop_seconds})."
             )
-        if not self._begin_stream_seconds <= start_seconds < self._end_stream_seconds:
+        if not begin_stream <= start_seconds < end_stream:
             raise ValueError(
                 f"Invalid start seconds: {start_seconds}. "
-                f"It must be greater than or equal to {self._begin_stream_seconds} "
-                f"and less than {self._end_stream_seconds}."
+                f"It must be greater than or equal to {begin_stream} "
+                f"and less than {end_stream}."
             )
-        if stop_seconds > self._end_stream_seconds:
+        if not stop_seconds <= end_stream:
             raise ValueError(
                 f"Invalid stop seconds: {stop_seconds}. "
-                f"It must be less than or equal to {self._end_stream_seconds}."
+                f"It must be less than or equal to {end_stream}."
             )
 
-        # Find all frames in range using frame index
-        if self._frame_index is not None:
-            indices = []
-            seconds = []
-            for i, info in enumerate(self._frame_index.frame_infos):
-                if start_seconds <= info.pts < stop_seconds:
-                    indices.append(i)
-                    seconds.append(info.pts)
-            if not indices:
-                return self._empty_frame_batch()
-            return self._decode_frames(indices, seconds)
-        else:
-            # Approximate mode: use FPS to estimate frames
-            fps = self._metadata.average_fps
-            start_idx = int(start_seconds * fps)
-            stop_idx = int(stop_seconds * fps)
-            indices = list(range(start_idx, stop_idx))
-            if not indices:
-                return self._empty_frame_batch()
-            seconds = [idx / fps for idx in indices]
-            return self._decode_frames(indices, seconds)
+        # Resampled mode: generate timestamps at the given fps
+        if fps is not None:
+            timestamps = np.arange(start_seconds, stop_seconds, 1.0 / fps).tolist()
+            if not timestamps:
+                return self._create_empty_batch()
+            return self.get_frames_played_at(timestamps)
 
-    def _can_avoid_seeking(self, first_target_idx: int) -> bool:
-        """Check if we can avoid seeking by continuing from current position.
+        # Native frame rate: decode all frames with pts in [start, stop)
+        self._seek_to_or_before(start_seconds)
 
-        [TorchCodec Compatibility: canWeAvoidSeeking() optimization]
-        If the first target frame is close to where we left off, we can
-        continue decoding sequentially instead of seeking.
-        """
-        if self._last_decoded_index is None:
-            return False
+        av_frames: list[av.VideoFrame] = []
+        for frame in self._container.decode(video=0):
+            if frame.time is None:
+                raise ValueError("Frame time is None")
+            frame_pts = float(frame.time)
+            if frame_pts >= stop_seconds:
+                break
+            if frame_pts >= start_seconds:
+                av_frames.append(frame)
 
-        # Can continue if target is ahead of last position but not too far
-        # TorchCodec uses a similar heuristic - avoid seek if within ~GOP distance
-        distance = first_target_idx - self._last_decoded_index
-        if distance <= 0:
-            # Target is behind current position, must seek
-            return False
+        if not av_frames:
+            return self._create_empty_batch()
 
-        # If target is within reasonable distance, continue decoding
-        # Use GOP size estimate (keyframe interval) as threshold
-        gop_estimate = 30  # Default GOP size estimate
-        if self._frame_index and len(self._frame_index.keyframe_indices) >= 2:
-            # Estimate GOP from actual keyframe positions
-            kf_indices = self._frame_index.keyframe_indices
-            avg_gop = (kf_indices[-1] - kf_indices[0]) / (len(kf_indices) - 1)
-            gop_estimate = int(avg_gop)
+        frames = _convert_av_frames_to_nchw(av_frames)
 
-        return distance <= gop_estimate
-
-    def _decode_frames(
-        self, indices: List[int], query_seconds: List[float]
-    ) -> FrameBatch:
-        """Decode frames at given indices.
-
-        Uses sequential decoding with efficient keyframe seeking.
-        Implements seek optimization to avoid unnecessary seeks.
-        """
-        # Build mapping: (original_position, frame_index, query_seconds)
-        queries = [(i, idx, sec) for i, (idx, sec) in enumerate(zip(indices, query_seconds))]
-
-        # Sort by frame index for efficient sequential decoding
-        queries_sorted = sorted(queries, key=lambda x: x[1])
-
-        # Decode frames
-        decoded: Dict[int, av.VideoFrame] = {}
-        unique_indices = sorted(set(idx for _, idx, _ in queries_sorted))
-
-        if unique_indices:
-            first_target_idx = unique_indices[0]
-
-            # [TorchCodec Compatibility: Seek optimization]
-            # Check if we can avoid seeking by continuing from current position
-            if self._can_avoid_seeking(first_target_idx):
-                # Continue from current position
-                start_idx = self._last_decoded_index + 1
-            else:
-                # Seek to keyframe before first requested frame
-                first_keyframe_idx = self._find_keyframe_before(first_target_idx)
-                if self._frame_index and first_keyframe_idx < len(self._frame_index.frame_infos):
-                    seek_pts = self._frame_index.frame_infos[first_keyframe_idx].pts
-                else:
-                    seek_pts = first_keyframe_idx / self._metadata.average_fps
-
-                # Seek to position
-                seek_ts = int(seek_pts / float(self._stream.time_base))
-                self._container.seek(seek_ts, stream=self._stream)
-                start_idx = first_keyframe_idx
-
-            # Decode sequentially
-            target_set = set(unique_indices)
-            current_idx = start_idx
-
-            for frame in self._container.decode(self._stream):
-                if current_idx in target_set:
-                    decoded[current_idx] = frame
-                    target_set.remove(current_idx)
-
-                current_idx += 1
-
-                if not target_set or current_idx > unique_indices[-1]:
-                    break
-
-            # Update last decoded position for seek optimization
-            self._last_decoded_index = current_idx - 1
-
-        # Convert to numpy and reorder to original query order
-        frames_data = []
-        pts_list = []
-        duration_list = []
-        frame_indices_list = []
-
-        for orig_pos, idx, query_sec in queries:
-            if idx in decoded:
-                frame = decoded[idx]
-                # Convert to RGB numpy array
-                rgb_frame = frame.to_ndarray(format="rgb24")
-                frames_data.append(rgb_frame)
-                pts_list.append(frame.time if frame.time else query_sec)
-            else:
-                # Frame not found - use placeholder
-                h, w = self._metadata.height, self._metadata.width
-                frames_data.append(np.zeros((h, w, 3), dtype=np.uint8))
-                pts_list.append(query_sec)
-
-            # Calculate duration from frame index
-            if self._frame_index and idx < len(self._frame_index.frame_infos):
-                info = self._frame_index.frame_infos[idx]
-                if info.next_pts != float("inf"):
-                    duration = info.next_pts - info.pts
-                else:
-                    duration = 1.0 / self._metadata.average_fps
-            else:
-                duration = 1.0 / self._metadata.average_fps
-
-            duration_list.append(duration)
-            frame_indices_list.append(idx)
-
-        # Stack frames and apply dimension order
-        data = np.stack(frames_data, axis=0)  # NHWC format
-
-        # Convert to NCHW if requested
-        if self._dimension_order == "NCHW":
-            data = np.transpose(data, (0, 3, 1, 2))  # NHWC -> NCHW
+        pts_list = [float(frame.time) for frame in av_frames]
+        duration = float(1.0 / self._metadata.average_rate)
 
         return FrameBatch(
-            data=data,
+            data=np.stack(frames, axis=0),
             pts_seconds=np.array(pts_list, dtype=np.float64),
-            duration_seconds=np.array(duration_list, dtype=np.float64),
-            frame_indices=np.array(frame_indices_list, dtype=np.int64),
+            duration_seconds=np.full(len(av_frames), duration, dtype=np.float64),
         )
 
-    def __getitem__(self, key: Union[int, slice]) -> npt.NDArray[np.uint8]:
-        """Enable array-like indexing for frame access.
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
 
-        [TorchCodec Compatibility: VideoDecoder.__getitem__()]
-        Supports decoder[idx] and decoder[start:stop:step] syntax.
+    def _get_frames_played_at(self, seconds: List[float]) -> list[av.VideoFrame]:
+        """Get frames using playback-frame semantics (internal).
+
+        For each timestamp returns the frame where
+        ``frame[i].pts <= timestamp < frame[i+1].pts``.
         """
-        if isinstance(key, int):
-            return self.get_frames_at([key]).data[0]
-        elif isinstance(key, slice):
-            indices = range(*key.indices(len(self)))
-            return self.get_frames_at(list(indices)).data
-        else:
-            raise TypeError(f"Invalid key type: {type(key)}")
+        global _CALLED_TIMES
+        _CALLED_TIMES += 1
+        if _CALLED_TIMES % _GC_COLLECTION_INTERVAL == 0:
+            gc.collect()
+
+        # Sort queries for efficient sequential access, preserving output order
+        indexed_queries = sorted(enumerate(seconds), key=lambda x: x[1])
+        results: list[av.VideoFrame] = [None] * len(seconds)  # type: ignore[list-item]
+
+        query_idx = 0
+        prev_frame: Optional[av.VideoFrame] = None
+        prev_frame_pts: float = float("-inf")
+
+        # Seek to just before the first query
+        first_query_time = indexed_queries[0][1]
+        self._seek_to_or_before(first_query_time)
+
+        # Decode frames and match to queries using nextPts logic
+        for frame in self._container.decode(video=0):
+            if frame.time is None:
+                raise ValueError("Frame time is None")
+
+            frame_pts = float(frame.time)
+
+            # Process all queries where prev_frame.pts <= query < frame.pts
+            while query_idx < len(indexed_queries):
+                orig_idx, query_time = indexed_queries[query_idx]
+                if query_time < frame_pts:
+                    if prev_frame is not None and prev_frame_pts <= query_time:
+                        results[orig_idx] = prev_frame
+                        query_idx += 1
+                    elif prev_frame is None:
+                        raise ValueError(
+                            f"Timestamp {query_time}s is before first frame (pts={frame_pts}s)"
+                        )
+                    else:
+                        raise ValueError(
+                            f"Internal error: query {query_time}s "
+                            f"not in [{prev_frame_pts}, {frame_pts})"
+                        )
+                else:
+                    break
+
+            prev_frame = frame
+            prev_frame_pts = frame_pts
+
+            if query_idx >= len(indexed_queries):
+                break
+
+        # Handle remaining queries (at or after last decoded frame)
+        while query_idx < len(indexed_queries):
+            orig_idx, query_time = indexed_queries[query_idx]
+            if prev_frame is not None and prev_frame_pts <= query_time:
+                results[orig_idx] = prev_frame
+                query_idx += 1
+            else:
+                raise ValueError(f"Could not find frame for timestamp {query_time}s")
+
+        for i, result in enumerate(results):
+            if result is None:
+                raise ValueError(f"Could not find frame for timestamp {seconds[i]}s")
+
+        return results
+
+    def _seek_to_or_before(self, target_seconds: float) -> None:
+        """Seek to *target_seconds* or before it (exponential backoff).
+
+        PyAV seeks to keyframes which may land past the target when
+        keyframes are sparse.  This method detects overshooting and
+        backs off exponentially until a valid position is found.
+        """
+        stream = self._container.streams.video[0]
+        time_base = float(stream.time_base)
+        begin_stream = float(self._metadata.begin_stream_seconds)
+
+        seek_target = target_seconds
+        buffer = 1.0  # initial backoff in seconds
+
+        while True:
+            seek_pts = int(seek_target / time_base)
+            self._container.seek(
+                seek_pts, stream=stream, any_frame=False, backward=True,
+            )
+
+            # Peek at the first decoded frame
+            try:
+                frame = next(self._container.decode(video=0))
+            except StopIteration:
+                return
+
+            if frame.time is not None and frame.time <= target_seconds:
+                # Landed at or before target — re-seek to restore position
+                self._container.seek(
+                    seek_pts, stream=stream, any_frame=False, backward=True,
+                )
+                return
+
+            # Overshot — back off
+            seek_target = target_seconds - buffer
+            buffer *= 2
+
+            if seek_target <= begin_stream:
+                self._container.seek(0)
+                return
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
 
     def close(self) -> None:
         """Release video decoder resources."""
-        if hasattr(self, "_container") and self._container:
+        if hasattr(self, "_container"):
             self._container.close()
-            self._container = None  # type: ignore
-
-    def __repr__(self) -> str:
-        """Return string representation."""
-        status = "closed" if self._container is None else "open"
-        return (
-            f"VideoDecoder({self._source.name!r}, "
-            f"frames={self._metadata.num_frames}, "
-            f"{self._metadata.width}x{self._metadata.height}, "
-            f"status={status})"
-        )
 
     def __enter__(self) -> "VideoDecoder":
-        """Enter context manager."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Exit context manager and release resources."""
-        self.close()
-
-    def __del__(self) -> None:
-        """Destructor - ensure resources are released."""
         self.close()
 
 
