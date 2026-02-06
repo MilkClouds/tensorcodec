@@ -14,6 +14,32 @@ DECODERS: dict[str, type[VideoDecoderProtocol]] = {
 try:
     from benchmarks.decoders.torchcodec_decoder import TorchCodecDecoder
     DECODERS["torchcodec"] = TorchCodecDecoder
+except (ImportError, RuntimeError):
+    pass
+
+try:
+    from benchmarks.decoders.decord_decoder import DecordDecoder
+    DECODERS["decord"] = DecordDecoder
+except ImportError:
+    pass
+
+try:
+    from benchmarks.decoders.opencv_decoder import OpenCVDecoder
+    DECODERS["opencv"] = OpenCVDecoder
+except ImportError:
+    pass
+
+try:
+    from benchmarks.decoders.torchvision_decoder import (
+        TorchVisionPyAVDecoder,
+        TorchVisionVideoReaderDecoder,
+        available_backends,
+    )
+    _tv_backends = available_backends()
+    if "pyav" in _tv_backends:
+        DECODERS["torchvision-pyav"] = TorchVisionPyAVDecoder
+    if "video_reader" in _tv_backends:
+        DECODERS["torchvision-video_reader"] = TorchVisionVideoReaderDecoder
 except ImportError:
     pass
 
