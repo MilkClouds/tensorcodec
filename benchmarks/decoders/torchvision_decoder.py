@@ -11,7 +11,6 @@ import warnings
 from typing import List, Optional
 
 import numpy as np
-import torch
 import torchvision
 from torchvision.io import VideoReader
 
