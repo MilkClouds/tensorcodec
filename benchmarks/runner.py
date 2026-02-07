@@ -64,13 +64,15 @@ class BenchmarkConfig:
 # ---------------------------------------------------------------------------
 # Video preparation (separated from benchmarking)
 # ---------------------------------------------------------------------------
-def _create_one_video(output_path: str, duration_sec: float, fps: int = 30) -> None:
-    """Create a synthetic video (640×480, libx264, keyframe interval 10)."""
+def _create_one_video(
+    output_path: str, duration_sec: float, fps: int = 30, keyframe_interval: int = 10,
+) -> None:
+    """Create a synthetic video (640×480, libx264)."""
     try:
         cmd = [
             "ffmpeg", "-y", "-f", "lavfi",
             "-i", f"testsrc=duration={duration_sec}:size=640x480:rate={fps}",
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-g", "10",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-g", str(keyframe_interval),
             output_path,
         ]
         subprocess.run(cmd, capture_output=True, check=True)
@@ -84,7 +86,7 @@ def _create_one_video(output_path: str, duration_sec: float, fps: int = 30) -> N
     container = av.open(output_path, mode="w")
     stream = container.add_stream("libx264", rate=fps)
     stream.width, stream.height, stream.pix_fmt = 640, 480, "yuv420p"
-    stream.options = {"g": "10"}
+    stream.options = {"g": str(keyframe_interval)}
     for i in range(num_frames):
         data = np.zeros((480, 640, 3), dtype=np.uint8)
         data[:, :, 0] = (i * 3) % 256
@@ -103,6 +105,7 @@ def prepare_videos(
     num_videos: int = 64,
     duration_sec: float = 300.0,
     fps: int = 30,
+    keyframe_interval: int = 10,
 ) -> list[str]:
     """Create *num_videos* synthetic videos in *video_dir*.
 
@@ -115,6 +118,7 @@ def prepare_videos(
 
     print(f"Video corpus: {num_videos} × {duration_sec:.0f}s = {total_duration_min:.0f} min")
     print(f"  Directory : {video_dir}")
+    print(f"  Params    : {fps}fps, 640×480, libx264, keyframe_interval={keyframe_interval}")
 
     for idx in range(num_videos):
         name = f"video_{idx:04d}.mp4"
@@ -123,7 +127,7 @@ def prepare_videos(
         if path.exists():
             continue
         print(f"  Creating {name} ({idx + 1}/{num_videos}) ...", end="", flush=True)
-        _create_one_video(str(path), duration_sec, fps)
+        _create_one_video(str(path), duration_sec, fps, keyframe_interval)
         size_mb = path.stat().st_size / (1024 * 1024)
         print(f" {size_mb:.1f} MB")
 
@@ -307,6 +311,8 @@ def main() -> None:
                         help="Number of test videos to generate (default: 64)")
     parser.add_argument("--video-duration", type=float, default=300.0,
                         help="Duration of each video in seconds (default: 300 = 5 min)")
+    parser.add_argument("--keyframe-interval", type=int, default=10,
+                        help="Keyframe (GOP) interval in frames (default: 10)")
     # Benchmarking
     parser.add_argument("--decoders", "-d", nargs="+", help="Decoder names to benchmark")
     parser.add_argument("--runs", "-r", type=int, default=3, help="Repetitions per scenario")
@@ -334,7 +340,10 @@ def main() -> None:
 
     # --- Prepare ---
     if args.prepare:
-        prepare_videos(args.video_dir, args.num_videos, args.video_duration)
+        prepare_videos(
+            args.video_dir, args.num_videos, args.video_duration,
+            keyframe_interval=args.keyframe_interval,
+        )
         return
 
     # --- Discover videos ---
