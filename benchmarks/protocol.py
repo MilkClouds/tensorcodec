@@ -62,6 +62,7 @@ class BenchmarkResult:
     elapsed_time: float
     io_bytes: Optional[int] = None
     io_calls: Optional[int] = None
+    timed_out: bool = False
 
     @property
     def fps(self) -> float:
@@ -83,5 +84,6 @@ class BenchmarkResult:
             "io_bytes": self.io_bytes,
             "io_calls": self.io_calls,
             "bytes_per_frame": round(self.bytes_per_frame, 1) if self.bytes_per_frame is not None else None,
+            "timed_out": self.timed_out,
         }
 

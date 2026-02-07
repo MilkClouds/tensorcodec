@@ -51,14 +51,27 @@ DEFAULT_VIDEO_DIR = Path(__file__).resolve().parent.parent / ".bench_videos"
 # Config
 # ---------------------------------------------------------------------------
 @dataclass
+class VideoCorpusConfig:
+    """Parameters for generating the test video corpus."""
+
+    video_dir: Path = field(default_factory=lambda: DEFAULT_VIDEO_DIR)
+    num_videos: int = 64
+    duration_sec: float = 300.0
+    fps: int = 30
+    keyframe_interval: int = 10
+
+
+@dataclass
 class BenchmarkConfig:
-    video_paths: list[str] = field(default_factory=list)
+    """Parameters that control how benchmarks are executed."""
+
     num_runs: int = 3
     measure_io: bool = True
     num_queries_per_video: int = 5
     window_seconds: float = 1.0
     window_step: float = 0.1
     random_seed: int = 42
+    timeout_seconds: float = 30.0
 
 
 # ---------------------------------------------------------------------------
@@ -100,34 +113,28 @@ def _create_one_video(
     container.close()
 
 
-def prepare_videos(
-    video_dir: Path,
-    num_videos: int = 64,
-    duration_sec: float = 300.0,
-    fps: int = 30,
-    keyframe_interval: int = 10,
-) -> list[str]:
-    """Create *num_videos* synthetic videos in *video_dir*.
+def prepare_videos(vcfg: VideoCorpusConfig) -> list[str]:
+    """Create synthetic videos according to *vcfg*.
 
     Existing videos are kept — only missing ones are generated.
     Returns the list of video paths.
     """
-    video_dir.mkdir(parents=True, exist_ok=True)
+    vcfg.video_dir.mkdir(parents=True, exist_ok=True)
     paths: list[str] = []
-    total_duration_min = num_videos * duration_sec / 60
+    total_duration_min = vcfg.num_videos * vcfg.duration_sec / 60
 
-    print(f"Video corpus: {num_videos} × {duration_sec:.0f}s = {total_duration_min:.0f} min")
-    print(f"  Directory : {video_dir}")
-    print(f"  Params    : {fps}fps, 640×480, libx264, keyframe_interval={keyframe_interval}")
+    print(f"Video corpus: {vcfg.num_videos} × {vcfg.duration_sec:.0f}s = {total_duration_min:.0f} min")
+    print(f"  Directory : {vcfg.video_dir}")
+    print(f"  Params    : {vcfg.fps}fps, 640×480, libx264, keyframe_interval={vcfg.keyframe_interval}")
 
-    for idx in range(num_videos):
+    for idx in range(vcfg.num_videos):
         name = f"video_{idx:04d}.mp4"
-        path = video_dir / name
+        path = vcfg.video_dir / name
         paths.append(str(path))
         if path.exists():
             continue
-        print(f"  Creating {name} ({idx + 1}/{num_videos}) ...", end="", flush=True)
-        _create_one_video(str(path), duration_sec, fps, keyframe_interval)
+        print(f"  Creating {name} ({idx + 1}/{vcfg.num_videos}) ...", end="", flush=True)
+        _create_one_video(str(path), vcfg.duration_sec, vcfg.fps, vcfg.keyframe_interval)
         size_mb = path.stat().st_size / (1024 * 1024)
         print(f" {size_mb:.1f} MB")
 
@@ -161,22 +168,32 @@ def _run_temporal_window(
             t_now = rng.uniform(cfg.window_seconds, duration - 0.001)
             queries.append((vp, [t_now + off for off in offsets]))
 
+    deadline = cfg.timeout_seconds
     times: list[float] = []
     total_frames = 0
-    for _ in range(cfg.num_runs):
+    timed_out = False
+    for run_idx in range(cfg.num_runs):
         t0 = time.perf_counter()
+        run_frames = 0
         for vp, ts_window in queries:
             arr = decoder.get_frames_played_at(vp, ts_window)
-            total_frames += arr.shape[0]
+            run_frames += arr.shape[0]
+            if time.perf_counter() - t0 >= deadline:
+                timed_out = True
+                break
         elapsed = time.perf_counter() - t0
         times.append(elapsed)
+        total_frames += run_frames
+        if timed_out:
+            break
 
-    avg_frames = total_frames // cfg.num_runs
+    avg_frames = total_frames // len(times)
     return BenchmarkResult(
         decoder_name=decoder.name,
         scenario="temporal_window",
         num_frames=avg_frames,
         elapsed_time=sum(times) / len(times),
+        timed_out=timed_out,
     )
 
 
@@ -184,24 +201,33 @@ def _run_sequential_range(
     decoder: VideoDecoderProtocol, video_paths: list[str], cfg: BenchmarkConfig,
 ) -> BenchmarkResult:
     """Decode every video start-to-end."""
+    deadline = cfg.timeout_seconds
     times: list[float] = []
     total_frames = 0
-    for _ in range(cfg.num_runs):
+    timed_out = False
+    for run_idx in range(cfg.num_runs):
         t0 = time.perf_counter()
         run_frames = 0
         for vp in video_paths:
             duration = decoder.get_video_duration(vp)
             arr = decoder.get_frames_played_in_range(vp, 0.0, duration)
             run_frames += arr.shape[0]
+            if time.perf_counter() - t0 >= deadline:
+                timed_out = True
+                break
         elapsed = time.perf_counter() - t0
         times.append(elapsed)
-        total_frames = run_frames  # same every run
+        total_frames += run_frames
+        if timed_out:
+            break
 
+    avg_frames = total_frames // len(times)
     return BenchmarkResult(
         decoder_name=decoder.name,
         scenario="sequential_range",
-        num_frames=total_frames,
+        num_frames=avg_frames,
         elapsed_time=sum(times) / len(times),
+        timed_out=timed_out,
     )
 
 
@@ -288,11 +314,15 @@ def print_results(results: list[BenchmarkResult], fmt: str = "table") -> None:
     print(header)
     print("-" * 90)
     for r in results:
+        timeout_mark = " *" if r.timed_out else ""
         line = f"{r.decoder_name:<20} {r.scenario:<20} {r.num_frames:<8} {r.elapsed_time:<10.3f} {r.fps:<10.1f}"
         if has_io and r.io_bytes is not None:
             line += f" {r.io_bytes / (1024 * 1024):<10.2f} {r.bytes_per_frame:<10.1f}"
+        line += timeout_mark
         print(line)
     print("=" * 90)
+    if any(r.timed_out for r in results):
+        print("* = timed out (partial result)")
 
 
 # ---------------------------------------------------------------------------
@@ -327,6 +357,9 @@ def main() -> None:
     parser.add_argument("--window-step", type=float, default=0.1,
                         help="Step between frames in window (default: 0.1)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
+    parser.add_argument("--timeout", "-t", type=float, default=30.0,
+                        help="Timeout per scenario run in seconds (default: 30). "
+                             "Partial results are kept on timeout.")
     parser.add_argument("--scenarios", "-s", nargs="+",
                         choices=["temporal_window", "sequential_range"],
                         help="Scenarios to run (default: all)")
@@ -338,31 +371,36 @@ def main() -> None:
             print(f"  - {name}")
         return
 
+    # --- Build configs from CLI args ---
+    vcfg = VideoCorpusConfig(
+        video_dir=args.video_dir,
+        num_videos=args.num_videos,
+        duration_sec=args.video_duration,
+        keyframe_interval=args.keyframe_interval,
+    )
+
     # --- Prepare ---
     if args.prepare:
-        prepare_videos(
-            args.video_dir, args.num_videos, args.video_duration,
-            keyframe_interval=args.keyframe_interval,
-        )
+        prepare_videos(vcfg)
         return
 
     # --- Discover videos ---
-    video_paths = discover_videos(args.video_dir)
+    video_paths = discover_videos(vcfg.video_dir)
     if not video_paths:
-        print(f"No videos found in {args.video_dir}")
+        print(f"No videos found in {vcfg.video_dir}")
         print("Run with --prepare first to generate the test corpus.")
         sys.exit(1)
 
-    print(f"Video corpus: {len(video_paths)} videos in {args.video_dir}")
+    print(f"Video corpus: {len(video_paths)} videos in {vcfg.video_dir}")
 
     cfg = BenchmarkConfig(
-        video_paths=video_paths,
         num_runs=args.runs,
         measure_io=not args.no_io,
         num_queries_per_video=args.queries,
         window_seconds=args.window,
         window_step=args.window_step,
         random_seed=args.seed,
+        timeout_seconds=args.timeout,
     )
 
     decoder_names = args.decoders or list_available_decoders()
@@ -378,6 +416,16 @@ def main() -> None:
     else:
         scenario_fns = list(_ALL_SCENARIOS.items())
 
+    def _fmt_result_line(res: BenchmarkResult) -> str:
+        """Format a single result for inline progress output."""
+        parts = [f"  {res.scenario}: {res.fps:.1f} FPS"]
+        if res.io_bytes is not None:
+            parts.append(f"  I/O {res.io_bytes / (1024 * 1024):.1f} MB"
+                         f"  ({res.bytes_per_frame:.0f} B/frame)")
+        if res.timed_out:
+            parts.append(f"  [TIMEOUT after {res.elapsed_time:.1f}s, {res.num_frames} frames]")
+        return "".join(parts)
+
     if args.verify_fuse:
         # --- FUSE overhead verification ---
         # Run each scenario twice: direct (no FUSE) and through FUSE.
@@ -391,15 +439,14 @@ def main() -> None:
                     res_direct = scenario_fn(dec, video_paths, cfg)
                     res_direct.scenario = res_direct.scenario + " [direct]"
                     results.append(res_direct)
-                    print(f"  {res_direct.scenario}: {res_direct.fps:.1f} FPS")
+                    print(_fmt_result_line(res_direct))
 
                     # Through FUSE
                     res_fuse = _run_with_fuse(dec, video_paths, cfg, scenario_fn)
                     res_fuse.scenario = res_fuse.scenario + " [fuse]"
                     results.append(res_fuse)
                     overhead = (res_direct.fps - res_fuse.fps) / res_direct.fps * 100
-                    print(f"  {res_fuse.scenario}: {res_fuse.fps:.1f} FPS  "
-                          f"(overhead: {overhead:+.1f}%)")
+                    print(_fmt_result_line(res_fuse) + f"  (overhead: {overhead:+.1f}%)")
             except Exception as exc:
                 print(f"  ERROR: {exc}")
     else:
@@ -414,11 +461,7 @@ def main() -> None:
                     else:
                         res = scenario_fn(dec, video_paths, cfg)
                     results.append(res)
-                    print(f"  {res.scenario}: {res.fps:.1f} FPS", end="")
-                    if res.io_bytes is not None:
-                        print(f"  I/O {res.io_bytes / (1024 * 1024):.1f} MB"
-                              f"  ({res.bytes_per_frame:.0f} B/frame)", end="")
-                    print()
+                    print(_fmt_result_line(res))
             except Exception as exc:
                 print(f"  ERROR: {exc}")
 
