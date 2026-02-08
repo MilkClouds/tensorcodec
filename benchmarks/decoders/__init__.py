@@ -25,7 +25,7 @@ try:
 
     for _cfg in TORCHCODEC_CONFIGS:
         DECODERS[_cfg.name] = _cfg
-except (ImportError, RuntimeError):
+except ImportError:
     pass
 
 try:
@@ -36,7 +36,7 @@ try:
 
         for _cfg in TORCHCODEC_GPU_CONFIGS:
             DECODERS[_cfg.name] = _cfg
-except (ImportError, RuntimeError):
+except ImportError:
     pass
 
 try:

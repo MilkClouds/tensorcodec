@@ -1,7 +1,26 @@
 """Pytest configuration and shared fixtures for avdec tests."""
 
+from pathlib import Path
+
 import numpy as np
 import pytest
+
+# ---------------------------------------------------------------------------
+# Test resource paths
+# ---------------------------------------------------------------------------
+_RESOURCES_DIR = Path(__file__).parent / "resources"
+
+# NASA public-domain footage.
+# Source: https://github.com/meta-pytorch/torchcodec (BSD-3-Clause)
+NASA_VIDEO_PATH = _RESOURCES_DIR / "nasa_13013.mp4"
+
+
+@pytest.fixture(scope="session")
+def nasa_video() -> Path:
+    """Return path to the NASA test video shipped in tests/resources/."""
+    if not NASA_VIDEO_PATH.exists():
+        pytest.skip(f"Test resource not found: {NASA_VIDEO_PATH}")
+    return NASA_VIDEO_PATH
 
 
 @pytest.fixture

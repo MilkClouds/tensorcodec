@@ -3,14 +3,11 @@
 These tests verify that avdec produces output comparable to TorchCodec
 for the same video inputs.
 
-To run these tests, set the TORCHCODEC_TEST_RESOURCES environment variable
-to the path of the TorchCodec test resources directory:
+The test video (``tests/resources/nasa_13013.mp4``) is NASA public-domain
+footage sourced from the torchcodec repository (BSD-3-Clause).
 
-    export TORCHCODEC_TEST_RESOURCES=/path/to/torchcodec/test/resources
     pytest tests/test_torchcodec_compat.py
 """
-
-import os
 
 import numpy as np
 import pytest
@@ -20,19 +17,10 @@ try:
     from torchcodec.decoders import VideoDecoder as TorchCodecDecoder
 
     HAS_TORCHCODEC = True
-except (ImportError, RuntimeError):
+except ImportError:
     HAS_TORCHCODEC = False
 
 from avdec import VideoDecoder
-
-# Path to TorchCodec test resources (from environment variable)
-TORCHCODEC_TEST_RESOURCES = os.environ.get("TORCHCODEC_TEST_RESOURCES")
-HAS_TEST_RESOURCES = TORCHCODEC_TEST_RESOURCES is not None and os.path.isdir(TORCHCODEC_TEST_RESOURCES)
-
-if HAS_TEST_RESOURCES:
-    NASA_VIDEO_PATH = os.path.join(TORCHCODEC_TEST_RESOURCES, "nasa_13013.mp4")
-else:
-    NASA_VIDEO_PATH = None
 
 
 def assert_frames_close(
@@ -60,24 +48,20 @@ def assert_frames_close(
 
 
 @pytest.mark.skipif(not HAS_TORCHCODEC, reason="TorchCodec not installed")
-@pytest.mark.skipif(not HAS_TEST_RESOURCES, reason="TORCHCODEC_TEST_RESOURCES env var not set")
 class TestTorchCodecCompatibility:
     """Test that avdec produces comparable output to TorchCodec.
 
-    Requires:
-        - TorchCodec installed
-        - TORCHCODEC_TEST_RESOURCES environment variable set
+    Requires TorchCodec to be installed.
+    The ``nasa_video`` fixture is provided by conftest.py.
     """
-
-    @pytest.fixture
-    def nasa_video(self):
-        """Return path to NASA test video."""
-        return NASA_VIDEO_PATH
 
     def test_metadata_matches(self, nasa_video):
         """Test that metadata extraction matches TorchCodec."""
         with VideoDecoder(nasa_video) as avdec_dec:
-            tc_dec = TorchCodecDecoder(nasa_video)
+            # nasa_13013.mp4 has multiple video streams; avdec uses
+            # streams.video[0] (stream index 0) so we tell torchcodec
+            # to use the same stream for an apples-to-apples comparison.
+            tc_dec = TorchCodecDecoder(nasa_video, stream_index=0)
             assert avdec_dec.metadata.width == tc_dec.metadata.width
             assert avdec_dec.metadata.height == tc_dec.metadata.height
             assert avdec_dec.metadata.num_frames == tc_dec.metadata.num_frames
@@ -91,7 +75,7 @@ class TestTorchCodecCompatibility:
         timestamps = [0.0, 0.5, 1.0, 2.5, 6.0, 10.0, 12.0]
 
         with VideoDecoder(nasa_video) as avdec_dec:
-            tc_dec = TorchCodecDecoder(nasa_video)
+            tc_dec = TorchCodecDecoder(nasa_video, stream_index=0)
 
             avdec_batch = avdec_dec.get_frames_played_at(timestamps)
             tc_batch = tc_dec.get_frames_played_at(timestamps)
