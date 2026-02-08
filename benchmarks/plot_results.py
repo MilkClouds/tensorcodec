@@ -28,51 +28,64 @@ def _load(path: Path) -> list[dict]:
 
 
 # ── Chart: README figure ────────────────────────────────────────────────────
-# Simple name mapping for README — one entry per library
-_README_NAMES = {
+# Name mapping for the speed panel — one entry per library (best config)
+_SPEED_NAMES = {
     "avdec": "avdec",
-    "torchcodec(seek=exact,thr=1)": "torchcodec",
+    "torchcodec(seek=approximate,thr=1)": "torchcodec",
     "decord": "decord",
     "opencv": "opencv",
     "torchvision-pyav": "torchvision",
 }
 
-# Order: avdec first (hero), then others alphabetically
-_README_ORDER = ["avdec", "torchcodec", "decord", "opencv", "torchvision"]
+# Name mapping for the I/O panel — includes both torchcodec configs
+_IO_NAMES = {
+    "avdec": "avdec",
+    "torchcodec(seek=approximate,thr=1)": "torchcodec",
+    "torchcodec(seek=exact,thr=1)": "torchcodec (exact)",
+    "decord": "decord",
+    "opencv": "opencv",
+    "torchvision-pyav": "torchvision",
+}
+
+# Order: avdec first (hero), then others; exact-seek variant last in I/O
+_SPEED_ORDER = ["avdec", "torchcodec", "decord", "opencv", "torchvision"]
+_IO_ORDER = ["avdec", "torchcodec", "torchcodec (exact)"]
 
 
 def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Path:
     """Two-panel README figure: FPS + Disk I/O per frame (temporal_window).
 
-    *speed_data* provides FPS for all decoders.
-    *io_data* provides bytes_per_frame for decoders that have FUSE data.
+    *speed_data* provides FPS for all decoders (best config per library).
+    *io_data* provides bytes_per_frame — includes both torchcodec configs
+    so readers can see the I/O cliff from exact-seek mode.
     """
     # Build FPS lookup from speed data
     fps_map: dict[str, float] = {}
     for r in speed_data:
-        simple = _README_NAMES.get(r["decoder"])
+        simple = _SPEED_NAMES.get(r["decoder"])
         if simple and r["scenario"] == "temporal_window" and simple not in fps_map:
             fps_map[simple] = r["fps"]
 
-    # Build I/O lookup from io data
+    # Build I/O lookup from io data (uses _IO_NAMES to include both configs)
     bpf_map: dict[str, float] = {}
     for r in io_data:
-        simple = _README_NAMES.get(r["decoder"])
+        simple = _IO_NAMES.get(r["decoder"])
         if simple and r["scenario"] == "temporal_window" and simple not in bpf_map:
             bpf = r.get("bytes_per_frame")
             if bpf and bpf > 0:
                 bpf_map[simple] = bpf
 
-    # FPS panel: all decoders in _README_ORDER
-    fps_labels = [n for n in _README_ORDER if n in fps_map]
+    # FPS panel: all decoders in _SPEED_ORDER
+    fps_labels = [n for n in _SPEED_ORDER if n in fps_map]
     fps_vals = [fps_map[n] for n in fps_labels]
 
-    # I/O panel: only decoders with data, same order
-    io_labels = [n for n in _README_ORDER if n in bpf_map]
+    # I/O panel: decoders with data, in _IO_ORDER
+    io_labels = [n for n in _IO_ORDER if n in bpf_map]
     io_vals = [bpf_map[n] for n in io_labels]
 
     HERO = "#2563eb"
     OTHER = "#cbd5e1"
+    WARN = "#f59e0b"  # amber for the "wrong config" bar
 
     n_fps = len(fps_labels)
     n_io = len(io_labels)
@@ -103,7 +116,14 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
 
     # ── Panel 2: Bytes/frame ──
     y2 = list(range(n_io))
-    c2 = [HERO if lb == "avdec" else OTHER for lb in io_labels]
+    c2 = []
+    for lb in io_labels:
+        if lb == "avdec":
+            c2.append(HERO)
+        elif "exact" in lb:
+            c2.append(WARN)
+        else:
+            c2.append(OTHER)
     bars2 = ax2.barh(y2, io_vals, color=c2, edgecolor="white", height=0.6)
     for bar, b, lb in zip(bars2, io_vals, io_labels):
         if b >= 1024 * 1024:
@@ -126,7 +146,7 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
     ax2.spines["top"].set_visible(False)
     ax2.spines["right"].set_visible(False)
 
-    fig.suptitle("Random seek + clip read",
+    fig.suptitle("Random seek + clip read  ·  temporal_window scenario",
                  fontsize=11, color="#64748b", y=1.01)
     fig.tight_layout()
     out = outdir / "readme.png"

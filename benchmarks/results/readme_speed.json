@@ -11,11 +11,11 @@
     "timed_out": false
   },
   {
-    "decoder": "torchcodec(seek=exact,thr=1)",
+    "decoder": "torchcodec(seek=approximate,thr=1)",
     "scenario": "temporal_window",
     "frames": 3520,
-    "elapsed_s": 18.0106,
-    "fps": 195.4,
+    "elapsed_s": 12.2768,
+    "fps": 286.8,
     "io_bytes": null,
     "io_calls": null,
     "bytes_per_frame": null,
