@@ -29,9 +29,7 @@ class _TorchVisionDecoder:
         torchvision.set_video_backend(self._backend)
         return VideoReader(video_path, "video")
 
-    def get_frames_played_at(
-        self, video_path: str, seconds: List[float]
-    ) -> np.ndarray:
+    def get_frames_played_at(self, video_path: str, seconds: List[float]) -> np.ndarray:
         vr = self._open(video_path)
 
         frames: list[np.ndarray] = []
@@ -116,4 +114,3 @@ def available_backends() -> list[str]:
         except RuntimeError:
             pass
     return backends
-

@@ -174,4 +174,3 @@ class TestFrameBatch:
             r = repr(batch)
             assert "FrameBatch" in r
             assert "data (shape)" in r
-

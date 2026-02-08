@@ -18,9 +18,7 @@ class OpenCVDecoder:
 
     name = "opencv"
 
-    def get_frames_played_at(
-        self, video_path: str, seconds: List[float]
-    ) -> np.ndarray:
+    def get_frames_played_at(self, video_path: str, seconds: List[float]) -> np.ndarray:
         cap = cv2.VideoCapture(video_path)
         try:
             frames = []
@@ -77,4 +75,3 @@ class OpenCVDecoder:
             return frame_count / fps
         finally:
             cap.release()
-

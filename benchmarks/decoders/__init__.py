@@ -22,6 +22,7 @@ DECODERS: dict[str, _Entry] = {
 # Optional decoders — register only when the library is importable.
 try:
     from benchmarks.decoders.torchcodec_decoder import TORCHCODEC_CONFIGS
+
     for _cfg in TORCHCODEC_CONFIGS:
         DECODERS[_cfg.name] = _cfg
 except (ImportError, RuntimeError):
@@ -29,8 +30,10 @@ except (ImportError, RuntimeError):
 
 try:
     import torch as _torch
+
     if _torch.cuda.is_available():
         from benchmarks.decoders.torchcodec_decoder import TORCHCODEC_GPU_CONFIGS
+
         for _cfg in TORCHCODEC_GPU_CONFIGS:
             DECODERS[_cfg.name] = _cfg
 except (ImportError, RuntimeError):
@@ -38,12 +41,14 @@ except (ImportError, RuntimeError):
 
 try:
     from benchmarks.decoders.decord_decoder import DecordDecoder
+
     DECODERS["decord"] = DecordDecoder
 except ImportError:
     pass
 
 try:
     from benchmarks.decoders.opencv_decoder import OpenCVDecoder
+
     DECODERS["opencv"] = OpenCVDecoder
 except ImportError:
     pass
@@ -54,6 +59,7 @@ try:
         TorchVisionVideoReaderDecoder,
         available_backends,
     )
+
     _tv_backends = available_backends()
     if "pyav" in _tv_backends:
         DECODERS["torchvision-pyav"] = TorchVisionPyAVDecoder
@@ -77,4 +83,3 @@ def get_decoder(name: str) -> VideoDecoderProtocol:
 def list_available_decoders() -> list[str]:
     """Return names of all importable decoders."""
     return list(DECODERS.keys())
-

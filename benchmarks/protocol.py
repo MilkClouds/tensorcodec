@@ -28,9 +28,7 @@ class VideoDecoderProtocol(Protocol):
 
     name: str
 
-    def get_frames_played_at(
-        self, video_path: str, seconds: List[float]
-    ) -> np.ndarray:
+    def get_frames_played_at(self, video_path: str, seconds: List[float]) -> np.ndarray:
         """Return NCHW uint8 array for the given timestamps."""
         ...
 
@@ -87,4 +85,3 @@ class BenchmarkResult:
             "bytes_per_frame": round(self.bytes_per_frame, 1) if self.bytes_per_frame is not None else None,
             "timed_out": self.timed_out,
         }
-

@@ -14,10 +14,10 @@ from avdec.doctor.report import DiagnosticReport, Issue, Severity, VideoStats
 def analyze(path: str) -> DiagnosticReport:
     """Analyze a video file and generate diagnostic report."""
     filepath = Path(path)
-    
+
     if not filepath.exists():
         return DiagnosticReport(error=f"File not found: {path}")
-    
+
     try:
         stats = _extract_stats(filepath)
         issues = _detect_issues(stats, filepath)
@@ -30,12 +30,12 @@ def _extract_stats(filepath: Path) -> VideoStats:
     """Extract video statistics using PyAV."""
     container = av.open(str(filepath))
     stream = container.streams.video[0]
-    
+
     # Basic info
     duration = float(container.duration / av.time_base) if container.duration else 0
     fps = float(stream.average_rate) if stream.average_rate else 0
     frame_count = stream.frames or int(duration * fps)
-    
+
     stats = VideoStats(
         path=filepath,
         container=container.format.name,
@@ -47,23 +47,19 @@ def _extract_stats(filepath: Path) -> VideoStats:
         fps_avg=fps,
         file_size_bytes=filepath.stat().st_size,
     )
-    
+
     # Analyze packets for keyframes and timing
     _analyze_packets(container, stream, stats)
-    
+
     # Check moov position for MP4
     if stats.container in ("mov", "mp4", "m4a", "3gp"):
         stats.moov_position = _check_moov_position(filepath)
-    
+
     container.close()
     return stats
 
 
-def _analyze_packets(
-    container: av.InputContainer,
-    stream: av.VideoStream,
-    stats: VideoStats
-) -> None:
+def _analyze_packets(container: av.InputContainer, stream: av.VideoStream, stats: VideoStats) -> None:
     """Analyze packet-level info: keyframes, frame durations."""
     keyframe_positions: List[int] = []
     pts_values: List[float] = []
@@ -86,10 +82,7 @@ def _analyze_packets(
     # Keyframe statistics
     stats.keyframe_count = len(keyframe_positions)
     if len(keyframe_positions) >= 2:
-        intervals = [
-            keyframe_positions[i+1] - keyframe_positions[i]
-            for i in range(len(keyframe_positions) - 1)
-        ]
+        intervals = [keyframe_positions[i + 1] - keyframe_positions[i] for i in range(len(keyframe_positions) - 1)]
         stats.keyframe_interval_frames_avg = statistics.mean(intervals)
         stats.keyframe_interval_frames_max = max(intervals)
         if stats.fps_avg > 0:
@@ -99,9 +92,9 @@ def _analyze_packets(
     if len(pts_values) > 1:
         sorted_pts = sorted(pts_values)
         frame_durations_ms = [
-            (sorted_pts[i+1] - sorted_pts[i]) * 1000
+            (sorted_pts[i + 1] - sorted_pts[i]) * 1000
             for i in range(len(sorted_pts) - 1)
-            if (sorted_pts[i+1] - sorted_pts[i]) > 0
+            if (sorted_pts[i + 1] - sorted_pts[i]) > 0
         ]
 
         if frame_durations_ms:
@@ -127,7 +120,7 @@ def _check_moov_position(filepath: Path) -> str:
             header = f.read(65536)
             if b"moov" in header[:32768]:
                 return "start"
-            
+
             # Check end of file
             f.seek(-65536, 2)
             tail = f.read()
@@ -176,12 +169,14 @@ def _check_keyframe_interval(stats: VideoStats, filepath: Path) -> List[Issue]:
 
         fix_cmd = f'ffmpeg -i "{filepath.name}" -c:v libx264 -g 30 -c:a copy "{filepath.stem}_fixed.mp4"'
 
-        issues.append(Issue(
-            severity=Severity.ERROR,
-            title="Almost no keyframes (random access very slow)",
-            body=body,
-            fix_command=fix_cmd,
-        ))
+        issues.append(
+            Issue(
+                severity=Severity.ERROR,
+                title="Almost no keyframes (random access very slow)",
+                body=body,
+                fix_command=fix_cmd,
+            )
+        )
         return issues
 
     avg_interval = stats.keyframe_interval_frames_avg
@@ -221,12 +216,14 @@ def _check_keyframe_interval(stats: VideoStats, filepath: Path) -> List[Issue]:
 
         fix_cmd = f'ffmpeg -i "{filepath.name}" -c:v libx264 -g 30 -c:a copy "{filepath.stem}_fixed.mp4"'
 
-        issues.append(Issue(
-            severity=severity,
-            title="Random frame access is slow",
-            body=body,
-            fix_command=fix_cmd,
-        ))
+        issues.append(
+            Issue(
+                severity=severity,
+                title="Random frame access is slow",
+                body=body,
+                fix_command=fix_cmd,
+            )
+        )
 
     return issues
 
@@ -264,12 +261,14 @@ def _check_frame_rate_consistency(stats: VideoStats, filepath: Path) -> List[Iss
 
     fix_cmd = f'ffmpeg -i "{filepath.name}" -vf "fps=30" -c:a copy "{filepath.stem}_cfr.mp4"'
 
-    issues.append(Issue(
-        severity=Severity.WARN,
-        title="Irregular frame intervals (VFR)",
-        body=body,
-        fix_command=fix_cmd,
-    ))
+    issues.append(
+        Issue(
+            severity=Severity.WARN,
+            title="Irregular frame intervals (VFR)",
+            body=body,
+            fix_command=fix_cmd,
+        )
+    )
 
     return issues
 
@@ -298,12 +297,13 @@ def _check_moov_location(stats: VideoStats, filepath: Path) -> List[Issue]:
 
         fix_cmd = f'ffmpeg -i "{filepath.name}" -c copy -movflags +faststart "{filepath.stem}_faststart.mp4"'
 
-        issues.append(Issue(
-            severity=Severity.WARN,
-            title="MP4 metadata location is inefficient",
-            body=body,
-            fix_command=fix_cmd,
-        ))
+        issues.append(
+            Issue(
+                severity=Severity.WARN,
+                title="MP4 metadata location is inefficient",
+                body=body,
+                fix_command=fix_cmd,
+            )
+        )
 
     return issues
-

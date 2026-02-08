@@ -126,4 +126,3 @@ class CountingFS(pyfuse3.Operations):
         fd = self._fd_map.pop(fh, None)
         if fd is not None:
             os.close(fd)
-

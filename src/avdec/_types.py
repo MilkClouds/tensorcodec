@@ -16,6 +16,7 @@ import numpy.typing as npt
 # FrameBatch
 # ---------------------------------------------------------------------------
 
+
 # Copied from https://github.com/pytorch/torchcodec/blob/main/src/torchcodec/_frame.py#L14-L27
 def _frame_repr(self):
     """Print shape of ``.data`` instead of the (potentially huge) array."""
@@ -86,4 +87,3 @@ __all__ = [
     "FrameBatch",
     "VideoStreamMetadata",
 ]
-

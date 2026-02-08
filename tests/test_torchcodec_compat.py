@@ -27,9 +27,7 @@ from avdec import VideoDecoder
 
 # Path to TorchCodec test resources (from environment variable)
 TORCHCODEC_TEST_RESOURCES = os.environ.get("TORCHCODEC_TEST_RESOURCES")
-HAS_TEST_RESOURCES = TORCHCODEC_TEST_RESOURCES is not None and os.path.isdir(
-    TORCHCODEC_TEST_RESOURCES
-)
+HAS_TEST_RESOURCES = TORCHCODEC_TEST_RESOURCES is not None and os.path.isdir(TORCHCODEC_TEST_RESOURCES)
 
 if HAS_TEST_RESOURCES:
     NASA_VIDEO_PATH = os.path.join(TORCHCODEC_TEST_RESOURCES, "nasa_13013.mp4")
@@ -83,9 +81,7 @@ class TestTorchCodecCompatibility:
             assert avdec_dec.metadata.width == tc_dec.metadata.width
             assert avdec_dec.metadata.height == tc_dec.metadata.height
             assert avdec_dec.metadata.num_frames == tc_dec.metadata.num_frames
-            assert float(avdec_dec.metadata.average_rate) == pytest.approx(
-                tc_dec.metadata.average_fps, rel=0.01
-            )
+            assert float(avdec_dec.metadata.average_rate) == pytest.approx(tc_dec.metadata.average_fps, rel=0.01)
             assert float(avdec_dec.metadata.duration_seconds) == pytest.approx(
                 tc_dec.metadata.duration_seconds, rel=0.01
             )
@@ -101,7 +97,4 @@ class TestTorchCodecCompatibility:
             tc_batch = tc_dec.get_frames_played_at(timestamps)
 
             for i, ts in enumerate(timestamps):
-                assert_frames_close(
-                    avdec_batch.data[i], tc_batch.data[i], msg=f"timestamp {ts}s"
-                )
-
+                assert_frames_close(avdec_batch.data[i], tc_batch.data[i], msg=f"timestamp {ts}s")

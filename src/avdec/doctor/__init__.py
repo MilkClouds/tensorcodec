@@ -27,4 +27,3 @@ def doctor(path: str) -> DiagnosticReport:
         DiagnosticReport with findings and recommendations
     """
     return analyze(path)
-

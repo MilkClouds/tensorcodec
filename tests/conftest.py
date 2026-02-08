@@ -7,7 +7,7 @@ import pytest
 @pytest.fixture
 def sample_video(tmp_path):
     """Create a sample video for testing using PyAV.
-    
+
     Creates a 30-frame video at 30fps (1 second duration) with 320x240 resolution.
     Each frame has a different grayscale value for easy verification.
     """
@@ -36,4 +36,3 @@ def sample_video(tmp_path):
 
     container.close()
     return video_path
-

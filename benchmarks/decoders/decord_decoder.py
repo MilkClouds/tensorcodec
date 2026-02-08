@@ -17,9 +17,7 @@ class DecordDecoder:
 
     name = "decord"
 
-    def get_frames_played_at(
-        self, video_path: str, seconds: List[float]
-    ) -> np.ndarray:
+    def get_frames_played_at(self, video_path: str, seconds: List[float]) -> np.ndarray:
         vr = VideoReader(video_path, ctx=cpu(0))
         fps = vr.get_avg_fps()
         # Convert timestamps to frame indices using playback-frame semantics:
@@ -50,4 +48,3 @@ class DecordDecoder:
     def get_video_duration(self, video_path: str) -> float:
         vr = VideoReader(video_path, ctx=cpu(0))
         return len(vr) / vr.get_avg_fps()
-

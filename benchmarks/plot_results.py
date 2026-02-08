@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")  # non-interactive backend
 import matplotlib.pyplot as plt
 
@@ -91,7 +92,9 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
     n_io = len(io_labels)
     row_h = 0.55
     fig, (ax1, ax2) = plt.subplots(
-        1, 2, figsize=(11, max(n_fps, n_io) * row_h + 1.4),
+        1,
+        2,
+        figsize=(11, max(n_fps, n_io) * row_h + 1.4),
         gridspec_kw={"width_ratios": [1.1, 1]},
     )
 
@@ -100,10 +103,15 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
     c1 = [HERO if lb == "avdec" else OTHER for lb in fps_labels]
     bars = ax1.barh(y1, fps_vals, color=c1, edgecolor="white", height=0.6)
     for bar, fps, lb in zip(bars, fps_vals, fps_labels):
-        ax1.text(bar.get_width() + max(fps_vals) * 0.02,
-                 bar.get_y() + bar.get_height() / 2,
-                 f"{fps:,.0f}", va="center", ha="left", fontsize=11,
-                 fontweight="bold" if lb == "avdec" else "normal")
+        ax1.text(
+            bar.get_width() + max(fps_vals) * 0.02,
+            bar.get_y() + bar.get_height() / 2,
+            f"{fps:,.0f}",
+            va="center",
+            ha="left",
+            fontsize=11,
+            fontweight="bold" if lb == "avdec" else "normal",
+        )
     ax1.set_yticks(y1)
     ax1.set_yticklabels(fps_labels, fontsize=12)
     ax1.invert_yaxis()
@@ -132,10 +140,15 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
             txt = f"{b / 1024:.1f} KB"
         else:
             txt = f"{b:.0f} B"
-        ax2.text(bar.get_width() * 1.15,
-                 bar.get_y() + bar.get_height() / 2,
-                 txt, va="center", ha="left", fontsize=11,
-                 fontweight="bold" if lb == "avdec" else "normal")
+        ax2.text(
+            bar.get_width() * 1.15,
+            bar.get_y() + bar.get_height() / 2,
+            txt,
+            va="center",
+            ha="left",
+            fontsize=11,
+            fontweight="bold" if lb == "avdec" else "normal",
+        )
     ax2.set_yticks(y2)
     ax2.set_yticklabels(io_labels, fontsize=12)
     ax2.invert_yaxis()
@@ -146,8 +159,7 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
     ax2.spines["top"].set_visible(False)
     ax2.spines["right"].set_visible(False)
 
-    fig.suptitle("Random seek + clip read  ·  temporal_window scenario",
-                 fontsize=11, color="#64748b", y=1.01)
+    fig.suptitle("Random seek + clip read  ·  temporal_window scenario", fontsize=11, color="#64748b", y=1.01)
     fig.tight_layout()
     out = outdir / "readme.png"
     fig.savefig(out, dpi=150, bbox_inches="tight", facecolor="white")
@@ -159,12 +171,11 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
 # ── CLI ──────────────────────────────────────────────────────────────────────
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plot benchmark results to PNG")
-    parser.add_argument("--speed", type=Path, default=DEFAULT_DIR / "readme_speed.json",
-                        help="Path to speed benchmark JSON")
-    parser.add_argument("--io", type=Path, default=DEFAULT_DIR / "readme_io.json",
-                        help="Path to I/O benchmark JSON")
-    parser.add_argument("--outdir", type=Path, default=DEFAULT_DIR,
-                        help="Output directory for PNGs")
+    parser.add_argument(
+        "--speed", type=Path, default=DEFAULT_DIR / "readme_speed.json", help="Path to speed benchmark JSON"
+    )
+    parser.add_argument("--io", type=Path, default=DEFAULT_DIR / "readme_io.json", help="Path to I/O benchmark JSON")
+    parser.add_argument("--outdir", type=Path, default=DEFAULT_DIR, help="Output directory for PNGs")
     args = parser.parse_args()
 
     args.outdir.mkdir(parents=True, exist_ok=True)

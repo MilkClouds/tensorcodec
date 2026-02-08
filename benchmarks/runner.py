@@ -80,14 +80,26 @@ class BenchmarkConfig:
 # Video preparation (separated from benchmarking)
 # ---------------------------------------------------------------------------
 def _create_one_video(
-    output_path: str, duration_sec: float, fps: int = 30, keyframe_interval: int = 10,
+    output_path: str,
+    duration_sec: float,
+    fps: int = 30,
+    keyframe_interval: int = 10,
 ) -> None:
     """Create a synthetic video (640×480, libx264)."""
     try:
         cmd = [
-            "ffmpeg", "-y", "-f", "lavfi",
-            "-i", f"testsrc=duration={duration_sec}:size=640x480:rate={fps}",
-            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-g", str(keyframe_interval),
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            f"testsrc=duration={duration_sec}:size=640x480:rate={fps}",
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-g",
+            str(keyframe_interval),
             output_path,
         ]
         subprocess.run(cmd, capture_output=True, check=True)
@@ -177,7 +189,7 @@ def _run_temporal_window(
             queries.append((vp, [t_now + off for off in offsets]))
 
     # Warmup: run a few queries to prime page cache / JIT / libraries
-    for vp, ts_window in queries[:cfg.warmup_queries]:
+    for vp, ts_window in queries[: cfg.warmup_queries]:
         decoder.get_frames_played_at(vp, ts_window)
 
     # Signal that warmup is done — allows FUSE stats to be reset so
@@ -308,10 +320,7 @@ def _run_with_fuse(
         fuse_options.add("fsname=countingfs")
 
         # Rewrite paths to go through the FUSE mount
-        fuse_paths = [
-            os.path.join(mount_point, os.path.basename(vp))
-            for vp in video_paths
-        ]
+        fuse_paths = [os.path.join(mount_point, os.path.basename(vp)) for vp in video_paths]
 
         async def _run():
             pyfuse3.init(fs, mount_point, fuse_options)
@@ -324,7 +333,9 @@ def _run_with_fuse(
                     # so I/O measurement excludes warmup / metadata reads.
                     result = await trio.to_thread.run_sync(
                         lambda: scenario_fn(
-                            decoder, fuse_paths, cfg,
+                            decoder,
+                            fuse_paths,
+                            cfg,
                             on_warmup_done=fs.reset_stats,
                         )
                     )
@@ -384,38 +395,49 @@ def main() -> None:
         description="Benchmark video decoders (FPS + disk I/O)",
     )
     # Preparation
-    parser.add_argument("--prepare", action="store_true",
-                        help="Generate test videos and exit (reuse with later runs)")
-    parser.add_argument("--video-dir", type=Path, default=DEFAULT_VIDEO_DIR,
-                        help=f"Directory for video corpus (default: {DEFAULT_VIDEO_DIR})")
-    parser.add_argument("--num-videos", type=int, default=64,
-                        help="Number of test videos to generate (default: 64)")
-    parser.add_argument("--video-duration", type=float, default=300.0,
-                        help="Duration of each video in seconds (default: 300 = 5 min)")
-    parser.add_argument("--keyframe-interval", type=int, default=10,
-                        help="Keyframe (GOP) interval in frames (default: 10)")
+    parser.add_argument("--prepare", action="store_true", help="Generate test videos and exit (reuse with later runs)")
+    parser.add_argument(
+        "--video-dir",
+        type=Path,
+        default=DEFAULT_VIDEO_DIR,
+        help=f"Directory for video corpus (default: {DEFAULT_VIDEO_DIR})",
+    )
+    parser.add_argument("--num-videos", type=int, default=64, help="Number of test videos to generate (default: 64)")
+    parser.add_argument(
+        "--video-duration", type=float, default=300.0, help="Duration of each video in seconds (default: 300 = 5 min)"
+    )
+    parser.add_argument(
+        "--keyframe-interval", type=int, default=10, help="Keyframe (GOP) interval in frames (default: 10)"
+    )
     # Benchmarking
     parser.add_argument("--decoders", "-d", nargs="+", help="Decoder names to benchmark")
     parser.add_argument("--runs", "-r", type=int, default=3, help="Repetitions per scenario")
     parser.add_argument("--no-io", action="store_true", help="Skip FUSE I/O measurement")
-    parser.add_argument("--verify-fuse", action="store_true",
-                        help="Run each scenario with AND without FUSE to measure FUSE overhead")
+    parser.add_argument(
+        "--verify-fuse", action="store_true", help="Run each scenario with AND without FUSE to measure FUSE overhead"
+    )
     parser.add_argument("--output", "-o", choices=["table", "json"], default="table")
-    parser.add_argument("--save", type=Path, default=None,
-                        help="Save results to a JSON file (e.g. results/speed.json)")
-    parser.add_argument("--queries", "-q", type=int, default=5,
-                        help="Temporal-window queries per video (default: 5)")
-    parser.add_argument("--window", type=float, default=1.0,
-                        help="Temporal window length in seconds (default: 1.0)")
-    parser.add_argument("--window-step", type=float, default=0.1,
-                        help="Step between frames in window (default: 0.1)")
+    parser.add_argument(
+        "--save", type=Path, default=None, help="Save results to a JSON file (e.g. results/speed.json)"
+    )
+    parser.add_argument("--queries", "-q", type=int, default=5, help="Temporal-window queries per video (default: 5)")
+    parser.add_argument("--window", type=float, default=1.0, help="Temporal window length in seconds (default: 1.0)")
+    parser.add_argument("--window-step", type=float, default=0.1, help="Step between frames in window (default: 0.1)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
-    parser.add_argument("--timeout", "-t", type=float, default=30.0,
-                        help="Timeout per scenario run in seconds (default: 30). "
-                             "Partial results are kept on timeout.")
-    parser.add_argument("--scenarios", "-s", nargs="+",
-                        choices=["temporal_window", "sequential_range"],
-                        help="Scenarios to run (default: all)")
+    parser.add_argument(
+        "--timeout",
+        "-t",
+        type=float,
+        default=30.0,
+        help="Timeout per scenario run in seconds (default: 30). Partial results are kept on timeout.",
+    )
+    parser.add_argument(
+        "--scenarios",
+        "-s",
+        nargs="+",
+        choices=["temporal_window", "sequential_range"],
+        help="Scenarios to run (default: all)",
+    )
     parser.add_argument("--list-decoders", action="store_true", help="Print available decoders")
     args = parser.parse_args()
 
@@ -473,8 +495,7 @@ def main() -> None:
         """Format a single result for inline progress output."""
         parts = [f"  {res.scenario}: {res.fps:.1f} FPS"]
         if res.io_bytes is not None:
-            parts.append(f"  I/O {res.io_bytes / (1024 * 1024):.1f} MB"
-                         f"  ({res.bytes_per_frame:.0f} B/frame)")
+            parts.append(f"  I/O {res.io_bytes / (1024 * 1024):.1f} MB  ({res.bytes_per_frame:.0f} B/frame)")
         if res.timed_out:
             parts.append(f"  [TIMEOUT after {res.elapsed_time:.1f}s, {res.num_frames} frames]")
         return "".join(parts)

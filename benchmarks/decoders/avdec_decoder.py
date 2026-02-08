@@ -14,9 +14,7 @@ class AvdecDecoder:
 
     name = "avdec"
 
-    def get_frames_played_at(
-        self, video_path: str, seconds: List[float]
-    ) -> np.ndarray:
+    def get_frames_played_at(self, video_path: str, seconds: List[float]) -> np.ndarray:
         with VideoDecoder(video_path) as dec:
             batch = dec.get_frames_played_at(seconds)
             return batch.data  # NCHW uint8
@@ -35,4 +33,3 @@ class AvdecDecoder:
     def get_video_duration(self, video_path: str) -> float:
         with VideoDecoder(video_path) as dec:
             return float(dec.metadata.end_stream_seconds)
-

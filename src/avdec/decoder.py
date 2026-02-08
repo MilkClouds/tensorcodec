@@ -102,11 +102,7 @@ class VideoDecoder:
         begin_stream_seconds = first_pts
         end_stream_seconds = begin_stream_seconds + duration_seconds
 
-        num_frames = (
-            stream.frames
-            if stream.frames
-            else int(duration_seconds * average_rate)
-        )
+        num_frames = stream.frames if stream.frames else int(duration_seconds * average_rate)
 
         return VideoStreamMetadata(
             num_frames=num_frames,
@@ -214,10 +210,7 @@ class VideoDecoder:
                 f"and less than {end_stream}."
             )
         if not stop_seconds <= end_stream:
-            raise ValueError(
-                f"Invalid stop seconds: {stop_seconds}. "
-                f"It must be less than or equal to {end_stream}."
-            )
+            raise ValueError(f"Invalid stop seconds: {stop_seconds}. It must be less than or equal to {end_stream}.")
 
         # Resampled mode: generate timestamps at the given fps
         if fps is not None:
@@ -295,14 +288,9 @@ class VideoDecoder:
                         results[orig_idx] = prev_frame
                         query_idx += 1
                     elif prev_frame is None:
-                        raise ValueError(
-                            f"Timestamp {query_time}s is before first frame (pts={frame_pts}s)"
-                        )
+                        raise ValueError(f"Timestamp {query_time}s is before first frame (pts={frame_pts}s)")
                     else:
-                        raise ValueError(
-                            f"Internal error: query {query_time}s "
-                            f"not in [{prev_frame_pts}, {frame_pts})"
-                        )
+                        raise ValueError(f"Internal error: query {query_time}s not in [{prev_frame_pts}, {frame_pts})")
                 else:
                     break
 
@@ -344,7 +332,10 @@ class VideoDecoder:
         while True:
             seek_pts = int(seek_target / time_base)
             self._container.seek(
-                seek_pts, stream=stream, any_frame=False, backward=True,
+                seek_pts,
+                stream=stream,
+                any_frame=False,
+                backward=True,
             )
 
             # Peek at the first decoded frame
@@ -356,7 +347,10 @@ class VideoDecoder:
             if frame.time is not None and frame.time <= target_seconds:
                 # Landed at or before target — re-seek to restore position
                 self._container.seek(
-                    seek_pts, stream=stream, any_frame=False, backward=True,
+                    seek_pts,
+                    stream=stream,
+                    any_frame=False,
+                    backward=True,
                 )
                 return
 
@@ -385,4 +379,3 @@ class VideoDecoder:
 
 
 __all__ = ["VideoDecoder"]
-
