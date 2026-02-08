@@ -74,8 +74,7 @@ class VideoDecoder:
 
         if len(video_streams) > 1 and stream_index is None:
             descriptions = ", ".join(
-                f"[{i}] {s.width}x{s.height} @ {s.average_rate} fps"
-                for i, s in enumerate(video_streams)
+                f"[{i}] {s.width}x{s.height} @ {s.average_rate} fps" for i, s in enumerate(video_streams)
             )
             raise ValueError(
                 f"Multiple video streams found in {self._source} "
@@ -85,10 +84,7 @@ class VideoDecoder:
 
         idx = stream_index if stream_index is not None else 0
         if idx < 0 or idx >= len(video_streams):
-            raise ValueError(
-                f"stream_index={idx} out of range; "
-                f"file has {len(video_streams)} video stream(s)."
-            )
+            raise ValueError(f"stream_index={idx} out of range; file has {len(video_streams)} video stream(s).")
 
         self._stream: av.video.stream.VideoStream = video_streams[idx]
         self._video_stream_index: int = idx
