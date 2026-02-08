@@ -57,10 +57,7 @@ class TestTorchCodecCompatibility:
 
     def test_metadata_matches(self, nasa_video):
         """Test that metadata extraction matches TorchCodec."""
-        with VideoDecoder(nasa_video) as avdec_dec:
-            # nasa_13013.mp4 has multiple video streams; avdec uses
-            # streams.video[0] (stream index 0) so we tell torchcodec
-            # to use the same stream for an apples-to-apples comparison.
+        with VideoDecoder(nasa_video, stream_index=0) as avdec_dec:
             tc_dec = TorchCodecDecoder(nasa_video, stream_index=0)
             assert avdec_dec.metadata.width == tc_dec.metadata.width
             assert avdec_dec.metadata.height == tc_dec.metadata.height
@@ -74,7 +71,7 @@ class TestTorchCodecCompatibility:
         """Test that timestamp-based retrieval matches TorchCodec."""
         timestamps = [0.0, 0.5, 1.0, 2.5, 6.0, 10.0, 12.0]
 
-        with VideoDecoder(nasa_video) as avdec_dec:
+        with VideoDecoder(nasa_video, stream_index=0) as avdec_dec:
             tc_dec = TorchCodecDecoder(nasa_video, stream_index=0)
 
             avdec_batch = avdec_dec.get_frames_played_at(timestamps)

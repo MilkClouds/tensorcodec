@@ -49,6 +49,14 @@ class VideoDecoder:
 
     Args:
         source: Path to video file or URL.
+        stream_index: Index into the container's video stream list
+            (i.e. ``container.streams.video[stream_index]``).  Required
+            when the file contains more than one video stream; omit (or
+            pass ``None``) for single-stream files.
+
+    Raises:
+        ValueError: If the file has multiple video streams and
+            *stream_index* is not specified.
 
     Example:
         >>> with VideoDecoder("video.mp4") as decoder:
@@ -56,9 +64,34 @@ class VideoDecoder:
         ...     print(batch.data.shape)  # (3, 3, H, W) NCHW
     """
 
-    def __init__(self, source: PathLike):
+    def __init__(self, source: PathLike, *, stream_index: Optional[int] = None):
         self._source = source
         self._container: av.InputContainer = av.open(str(source), "r")
+
+        video_streams = self._container.streams.video
+        if not video_streams:
+            raise ValueError(f"No video streams found in {self._source}")
+
+        if len(video_streams) > 1 and stream_index is None:
+            descriptions = ", ".join(
+                f"[{i}] {s.width}x{s.height} @ {s.average_rate} fps"
+                for i, s in enumerate(video_streams)
+            )
+            raise ValueError(
+                f"Multiple video streams found in {self._source} "
+                f"({descriptions}). "
+                f"Please specify stream_index explicitly."
+            )
+
+        idx = stream_index if stream_index is not None else 0
+        if idx < 0 or idx >= len(video_streams):
+            raise ValueError(
+                f"stream_index={idx} out of range; "
+                f"file has {len(video_streams)} video stream(s)."
+            )
+
+        self._stream: av.video.stream.VideoStream = video_streams[idx]
+        self._video_stream_index: int = idx
         self._metadata = self._extract_metadata()
 
     # ------------------------------------------------------------------
@@ -72,9 +105,7 @@ class VideoDecoder:
         Uses header metadata for duration / end_stream_seconds.
         """
         container = self._container
-        if not container.streams.video:
-            raise ValueError(f"No video streams found in {self._source}")
-        stream = container.streams.video[0]
+        stream = self._stream
 
         # Frame rate
         if stream.average_rate:
@@ -93,7 +124,7 @@ class VideoDecoder:
         # Decode first frame to get accurate begin_stream_seconds
         container.seek(0)
         first_pts = Fraction(0)
-        for frame in container.decode(video=0):
+        for frame in container.decode(self._stream):
             if frame.time is not None:
                 first_pts = Fraction(frame.time).limit_denominator(1_000_000)
             break
@@ -223,7 +254,7 @@ class VideoDecoder:
         self._seek_to_or_before(start_seconds)
 
         av_frames: list[av.VideoFrame] = []
-        for frame in self._container.decode(video=0):
+        for frame in self._container.decode(self._stream):
             if frame.time is None:
                 raise ValueError("Frame time is None")
             frame_pts = float(frame.time)
@@ -274,7 +305,7 @@ class VideoDecoder:
         self._seek_to_or_before(first_query_time)
 
         # Decode frames and match to queries using nextPts logic
-        for frame in self._container.decode(video=0):
+        for frame in self._container.decode(self._stream):
             if frame.time is None:
                 raise ValueError("Frame time is None")
 
@@ -322,7 +353,7 @@ class VideoDecoder:
         keyframes are sparse.  This method detects overshooting and
         backs off exponentially until a valid position is found.
         """
-        stream = self._container.streams.video[0]
+        stream = self._stream
         time_base = float(stream.time_base)
         begin_stream = float(self._metadata.begin_stream_seconds)
 
@@ -340,7 +371,7 @@ class VideoDecoder:
 
             # Peek at the first decoded frame
             try:
-                frame = next(self._container.decode(video=0))
+                frame = next(self._container.decode(self._stream))
             except StopIteration:
                 return
 

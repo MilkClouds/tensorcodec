@@ -31,6 +31,22 @@ class TestVideoDecoderInit:
         with VideoDecoder(sample_video) as decoder:
             assert decoder.metadata.num_frames == 30
 
+    def test_multi_stream_without_index_raises(self, nasa_video):
+        """Test that opening a multi-stream video without stream_index raises."""
+        with pytest.raises(ValueError, match="Multiple video streams"):
+            VideoDecoder(nasa_video)
+
+    def test_multi_stream_with_index(self, nasa_video):
+        """Test that opening a multi-stream video with stream_index works."""
+        with VideoDecoder(nasa_video, stream_index=0) as decoder:
+            assert decoder.metadata.width == 320
+            assert decoder.metadata.height == 180
+
+    def test_stream_index_out_of_range(self, nasa_video):
+        """Test that an out-of-range stream_index raises."""
+        with pytest.raises(ValueError, match="out of range"):
+            VideoDecoder(nasa_video, stream_index=99)
+
 
 class TestVideoDecoderMetadata:
     """Test metadata extraction."""
