@@ -44,17 +44,20 @@ class OpenCVDecoder:
         stop_seconds: float,
         fps: Optional[float] = None,
     ) -> np.ndarray:
+        if fps is not None:
+            raise ValueError("OpenCVDecoder does not support the fps parameter")
         cap = cv2.VideoCapture(video_path)
         try:
             cap.set(cv2.CAP_PROP_POS_MSEC, start_seconds * 1000.0)
-            video_fps = cap.get(cv2.CAP_PROP_FPS)
             frames = []
             while True:
-                pos_sec = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
-                if pos_sec >= stop_seconds:
-                    break
                 ret, frame = cap.read()
                 if not ret:
+                    break
+                # Check position *after* reading so we use the actual
+                # frame's timestamp, not the pre-read seek position.
+                pos_sec = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000.0
+                if pos_sec >= stop_seconds:
                     break
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frames.append(np.transpose(frame, (2, 0, 1)))

@@ -33,8 +33,6 @@ class _TorchVisionDecoder:
         self, video_path: str, seconds: List[float]
     ) -> np.ndarray:
         vr = self._open(video_path)
-        meta = vr.get_metadata()
-        duration = meta["video"]["duration"][0]
 
         frames: list[np.ndarray] = []
         for ts in seconds:
@@ -67,6 +65,8 @@ class _TorchVisionDecoder:
         stop_seconds: float,
         fps: Optional[float] = None,
     ) -> np.ndarray:
+        if fps is not None:
+            raise ValueError("TorchVisionDecoder does not support the fps parameter")
         vr = self._open(video_path)
         if start_seconds > 0:
             vr.seek(start_seconds)

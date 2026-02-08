@@ -13,6 +13,7 @@ from typing import List, Optional
 
 import numpy as np
 from torchcodec.decoders import VideoDecoder as TorchCodecVideoDecoder
+from torchcodec.decoders import set_cuda_backend
 
 
 class TorchCodecDecoder:
@@ -45,9 +46,7 @@ class TorchCodecDecoder:
             num_ffmpeg_threads=self.num_ffmpeg_threads,
         )
 
-    def get_frames_played_at(
-        self, video_path: str, seconds: List[float]
-    ) -> np.ndarray:
+    def get_frames_played_at(self, video_path: str, seconds: List[float]) -> np.ndarray:
         dec = self._open(video_path)
         batch = dec.get_frames_played_at(seconds)
         return batch.data.numpy()  # NCHW uint8
@@ -59,6 +58,8 @@ class TorchCodecDecoder:
         stop_seconds: float,
         fps: Optional[float] = None,
     ) -> np.ndarray:
+        if fps is not None:
+            raise ValueError("TorchCodecDecoder does not support the fps parameter")
         dec = self._open(video_path)
         batch = dec.get_frames_played_in_range(start_seconds, stop_seconds)
         return batch.data.numpy()  # NCHW uint8
@@ -66,6 +67,55 @@ class TorchCodecDecoder:
     def get_video_duration(self, video_path: str) -> float:
         dec = self._open(video_path)
         return float(dec.metadata.end_stream_seconds)
+
+
+class TorchCodecGPUDecoder(TorchCodecDecoder):
+    """GPU-accelerated variant using ``device="cuda"``.
+
+    Decoded frames live on the GPU; they are moved to CPU/NumPy only at
+    the boundary so the benchmark protocol (which expects ``np.ndarray``)
+    is satisfied.
+    """
+
+    def __init__(
+        self,
+        seek_mode: str = "approximate",
+        num_ffmpeg_threads: int = 1,
+        name: str | None = None,
+    ) -> None:
+        super().__init__(
+            seek_mode=seek_mode,
+            num_ffmpeg_threads=num_ffmpeg_threads,
+            name=name or f"torchcodec(gpu,seek={seek_mode})",
+        )
+
+    def _open(self, video_path: str) -> TorchCodecVideoDecoder:
+        # NOTE: beta backend present at torchcodec>=0.8.0
+        with set_cuda_backend("beta"):
+            return TorchCodecVideoDecoder(
+                video_path,
+                device="cuda",
+                seek_mode=self.seek_mode,
+                num_ffmpeg_threads=self.num_ffmpeg_threads,
+            )
+
+    def get_frames_played_at(self, video_path: str, seconds: List[float]) -> np.ndarray:
+        dec = self._open(video_path)
+        batch = dec.get_frames_played_at(seconds)
+        return batch.data.cpu().numpy()  # GPU → CPU → NumPy
+
+    def get_frames_played_in_range(
+        self,
+        video_path: str,
+        start_seconds: float,
+        stop_seconds: float,
+        fps: Optional[float] = None,
+    ) -> np.ndarray:
+        if fps is not None:
+            raise ValueError("TorchCodecGPUDecoder does not support the fps parameter")
+        dec = self._open(video_path)
+        batch = dec.get_frames_played_in_range(start_seconds, stop_seconds)
+        return batch.data.cpu().numpy()  # GPU → CPU → NumPy
 
 
 # Pre-built configurations for the benchmark registry
@@ -76,3 +126,8 @@ TORCHCODEC_CONFIGS: list[TorchCodecDecoder] = [
     TorchCodecDecoder(seek_mode="approximate", num_ffmpeg_threads=0),
 ]
 
+# GPU configs — only instantiated when CUDA is available (checked in __init__.py)
+TORCHCODEC_GPU_CONFIGS: list[TorchCodecGPUDecoder] = [
+    TorchCodecGPUDecoder(seek_mode="approximate"),
+    TorchCodecGPUDecoder(seek_mode="exact"),
+]

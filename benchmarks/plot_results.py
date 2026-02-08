@@ -31,7 +31,7 @@ def _load(path: Path) -> list[dict]:
 # Name mapping for the speed panel — one entry per library (best config)
 _SPEED_NAMES = {
     "avdec": "avdec",
-    "torchcodec(seek=approximate,thr=1)": "torchcodec",
+    "torchcodec(seek=approximate,thr=1)": "torchcodec (approx)",
     "decord": "decord",
     "opencv": "opencv",
     "torchvision-pyav": "torchvision",
@@ -40,7 +40,7 @@ _SPEED_NAMES = {
 # Name mapping for the I/O panel — includes both torchcodec configs
 _IO_NAMES = {
     "avdec": "avdec",
-    "torchcodec(seek=approximate,thr=1)": "torchcodec",
+    "torchcodec(seek=approximate,thr=1)": "torchcodec (approx)",
     "torchcodec(seek=exact,thr=1)": "torchcodec (exact)",
     "decord": "decord",
     "opencv": "opencv",
@@ -48,8 +48,8 @@ _IO_NAMES = {
 }
 
 # Order: avdec first (hero), then others; exact-seek variant last in I/O
-_SPEED_ORDER = ["avdec", "torchcodec", "decord", "opencv", "torchvision"]
-_IO_ORDER = ["avdec", "torchcodec", "torchcodec (exact)"]
+_SPEED_ORDER = ["avdec", "torchcodec (approx)", "decord", "opencv", "torchvision"]
+_IO_ORDER = ["avdec", "torchcodec (approx)", "torchcodec (exact)"]
 
 
 def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Path:

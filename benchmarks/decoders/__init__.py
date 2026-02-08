@@ -28,6 +28,15 @@ except (ImportError, RuntimeError):
     pass
 
 try:
+    import torch as _torch
+    if _torch.cuda.is_available():
+        from benchmarks.decoders.torchcodec_decoder import TORCHCODEC_GPU_CONFIGS
+        for _cfg in TORCHCODEC_GPU_CONFIGS:
+            DECODERS[_cfg.name] = _cfg
+except (ImportError, RuntimeError):
+    pass
+
+try:
     from benchmarks.decoders.decord_decoder import DecordDecoder
     DECODERS["decord"] = DecordDecoder
 except ImportError:

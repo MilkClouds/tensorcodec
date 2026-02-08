@@ -38,6 +38,7 @@ import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 
@@ -72,6 +73,7 @@ class BenchmarkConfig:
     window_step: float = 0.1
     random_seed: int = 42
     timeout_seconds: float = 30.0
+    warmup_queries: int = 3
 
 
 # ---------------------------------------------------------------------------
@@ -153,8 +155,14 @@ def discover_videos(video_dir: Path) -> list[str]:
 # ---------------------------------------------------------------------------
 # Benchmark scenarios
 # ---------------------------------------------------------------------------
+_CallbackFn = Callable[[], None]
+
+
 def _run_temporal_window(
-    decoder: VideoDecoderProtocol, video_paths: list[str], cfg: BenchmarkConfig,
+    decoder: VideoDecoderProtocol,
+    video_paths: list[str],
+    cfg: BenchmarkConfig,
+    on_warmup_done: _CallbackFn | None = None,
 ) -> BenchmarkResult:
     """VLA-style access across the video corpus."""
     rng = random.Random(cfg.random_seed)
@@ -169,8 +177,13 @@ def _run_temporal_window(
             queries.append((vp, [t_now + off for off in offsets]))
 
     # Warmup: run a few queries to prime page cache / JIT / libraries
-    for vp, ts_window in queries[:3]:
+    for vp, ts_window in queries[:cfg.warmup_queries]:
         decoder.get_frames_played_at(vp, ts_window)
+
+    # Signal that warmup is done — allows FUSE stats to be reset so
+    # I/O measurement only covers the timed runs.
+    if on_warmup_done is not None:
+        on_warmup_done()
 
     deadline = cfg.timeout_seconds
     times: list[float] = []
@@ -191,18 +204,22 @@ def _run_temporal_window(
         if timed_out:
             break
 
-    avg_frames = total_frames // len(times)
+    avg_frames = round(total_frames / len(times))
     return BenchmarkResult(
         decoder_name=decoder.name,
         scenario="temporal_window",
         num_frames=avg_frames,
         elapsed_time=sum(times) / len(times),
         timed_out=timed_out,
+        num_runs_completed=len(times),
     )
 
 
 def _run_sequential_range(
-    decoder: VideoDecoderProtocol, video_paths: list[str], cfg: BenchmarkConfig,
+    decoder: VideoDecoderProtocol,
+    video_paths: list[str],
+    cfg: BenchmarkConfig,
+    on_warmup_done: _CallbackFn | None = None,
 ) -> BenchmarkResult:
     """Decode every video start-to-end."""
     # Pre-compute durations so we don't open each file twice inside the loop
@@ -211,6 +228,11 @@ def _run_sequential_range(
     # Warmup: decode a short range from the first video
     if video_paths:
         decoder.get_frames_played_in_range(video_paths[0], 0.0, min(1.0, durations[video_paths[0]]))
+
+    # Signal that warmup is done — allows FUSE stats to be reset so
+    # I/O measurement only covers the timed runs.
+    if on_warmup_done is not None:
+        on_warmup_done()
 
     deadline = cfg.timeout_seconds
     times: list[float] = []
@@ -231,33 +253,42 @@ def _run_sequential_range(
         if timed_out:
             break
 
-    avg_frames = total_frames // len(times)
+    avg_frames = round(total_frames / len(times))
     return BenchmarkResult(
         decoder_name=decoder.name,
         scenario="sequential_range",
         num_frames=avg_frames,
         elapsed_time=sum(times) / len(times),
         timed_out=timed_out,
+        num_runs_completed=len(times),
     )
 
 
 # ---------------------------------------------------------------------------
 # FUSE I/O measurement
 # ---------------------------------------------------------------------------
-_ScenarioFn = type(lambda: None)  # callable type alias for readability
+# NOTE: Running through FUSE adds measurable overhead to FPS (14–68%
+# depending on the decoder).  Use ``--no-io`` for accurate speed numbers.
+# The default mode (with FUSE) is intended for I/O measurement only;
+# the ``--verify-fuse`` flag can quantify the overhead for a given setup.
 
 
 def _run_with_fuse(
     decoder: VideoDecoderProtocol,
     video_paths: list[str],
     cfg: BenchmarkConfig,
-    scenario_fn: _ScenarioFn,
+    scenario_fn: Callable,
 ) -> BenchmarkResult:
     """Run *scenario_fn* through a FUSE mount to capture I/O stats.
 
     Mounts the video directory via :class:`CountingFS`, rewrites all
     video paths to go through the mount, runs the scenario, then
     collects cumulative read-byte / read-call stats.
+
+    The scenario function receives an ``on_warmup_done`` callback that
+    resets FUSE counters after warmup, so only the timed measurement
+    runs contribute to I/O stats.  The raw FUSE totals are then
+    divided by ``result.num_runs_completed`` to produce per-run I/O.
     """
     try:
         import pyfuse3
@@ -284,23 +315,33 @@ def _run_with_fuse(
 
         async def _run():
             pyfuse3.init(fs, mount_point, fuse_options)
-            async with trio.open_nursery() as nursery:
-                nursery.start_soon(pyfuse3.main)
-                await trio.sleep(0.5)  # let FUSE mount settle
-
-                fs.reset_stats()
-                result = await trio.to_thread.run_sync(
-                    lambda: scenario_fn(decoder, fuse_paths, cfg)
-                )
-                stats = fs.get_stats()
-                result.io_bytes = stats["bytes"]
-                result.io_calls = stats["calls"]
-                nursery.cancel_scope.cancel()
-
             try:
-                pyfuse3.close()
-            except Exception:
-                pass
+                async with trio.open_nursery() as nursery:
+                    nursery.start_soon(pyfuse3.main)
+                    await trio.sleep(0.5)  # let FUSE mount settle
+
+                    # Pass a callback that resets FUSE stats after warmup
+                    # so I/O measurement excludes warmup / metadata reads.
+                    result = await trio.to_thread.run_sync(
+                        lambda: scenario_fn(
+                            decoder, fuse_paths, cfg,
+                            on_warmup_done=fs.reset_stats,
+                        )
+                    )
+                    stats = fs.get_stats()
+
+                    # Normalize I/O by the number of completed runs so
+                    # bytes_per_frame = per-run I/O / per-run frames.
+                    n_runs = max(result.num_runs_completed, 1)
+                    result.io_bytes = stats["bytes"] // n_runs
+                    result.io_calls = stats["calls"] // n_runs
+
+                    nursery.cancel_scope.cancel()
+            finally:
+                try:
+                    pyfuse3.close()
+                except Exception:
+                    pass
             return result
 
         return trio.run(_run)

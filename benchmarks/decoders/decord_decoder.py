@@ -35,6 +35,8 @@ class DecordDecoder:
         stop_seconds: float,
         fps: Optional[float] = None,
     ) -> np.ndarray:
+        if fps is not None:
+            raise ValueError("DecordDecoder does not support the fps parameter")
         vr = VideoReader(video_path, ctx=cpu(0))
         avg_fps = vr.get_avg_fps()
         start_idx = int(start_seconds * avg_fps)

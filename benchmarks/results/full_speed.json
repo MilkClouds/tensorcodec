@@ -1,0 +1,222 @@
+[
+  {
+    "decoder": "avdec",
+    "scenario": "temporal_window",
+    "frames": 3520,
+    "elapsed_s": 18.6984,
+    "fps": 188.3,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": false
+  },
+  {
+    "decoder": "avdec",
+    "scenario": "sequential_range",
+    "frames": 18000,
+    "elapsed_s": 27.5119,
+    "fps": 654.3,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchcodec(seek=exact,thr=1)",
+    "scenario": "temporal_window",
+    "frames": 3520,
+    "elapsed_s": 14.7576,
+    "fps": 238.5,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": false
+  },
+  {
+    "decoder": "torchcodec(seek=exact,thr=1)",
+    "scenario": "sequential_range",
+    "frames": 27000,
+    "elapsed_s": 22.2479,
+    "fps": 1213.6,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchcodec(seek=exact,thr=0)",
+    "scenario": "temporal_window",
+    "frames": 2354,
+    "elapsed_s": 20.0446,
+    "fps": 117.4,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchcodec(seek=exact,thr=0)",
+    "scenario": "sequential_range",
+    "frames": 54000,
+    "elapsed_s": 23.224,
+    "fps": 2325.2,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchcodec(seek=approximate,thr=1)",
+    "scenario": "temporal_window",
+    "frames": 3520,
+    "elapsed_s": 12.762,
+    "fps": 275.8,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": false
+  },
+  {
+    "decoder": "torchcodec(seek=approximate,thr=1)",
+    "scenario": "sequential_range",
+    "frames": 27000,
+    "elapsed_s": 22.5318,
+    "fps": 1198.3,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchcodec(seek=approximate,thr=0)",
+    "scenario": "temporal_window",
+    "frames": 2860,
+    "elapsed_s": 20.0375,
+    "fps": 142.7,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchcodec(seek=approximate,thr=0)",
+    "scenario": "sequential_range",
+    "frames": 45000,
+    "elapsed_s": 20.5678,
+    "fps": 2187.9,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchcodec(gpu,seek=approximate)",
+    "scenario": "temporal_window",
+    "frames": 3476,
+    "elapsed_s": 20.0288,
+    "fps": 173.6,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchcodec(gpu,seek=approximate)",
+    "scenario": "sequential_range",
+    "frames": 18000,
+    "elapsed_s": 20.1854,
+    "fps": 891.7,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchcodec(gpu,seek=exact)",
+    "scenario": "temporal_window",
+    "frames": 3432,
+    "elapsed_s": 20.0192,
+    "fps": 171.4,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchcodec(gpu,seek=exact)",
+    "scenario": "sequential_range",
+    "frames": 27000,
+    "elapsed_s": 25.9778,
+    "fps": 1039.3,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "decord",
+    "scenario": "temporal_window",
+    "frames": 1760,
+    "elapsed_s": 20.0312,
+    "fps": 87.9,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "decord",
+    "scenario": "sequential_range",
+    "frames": 27000,
+    "elapsed_s": 24.6866,
+    "fps": 1093.7,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "opencv",
+    "scenario": "temporal_window",
+    "frames": 1166,
+    "elapsed_s": 20.0778,
+    "fps": 58.1,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "opencv",
+    "scenario": "sequential_range",
+    "frames": 27000,
+    "elapsed_s": 25.7961,
+    "fps": 1046.7,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchvision-pyav",
+    "scenario": "temporal_window",
+    "frames": 572,
+    "elapsed_s": 20.1205,
+    "fps": 28.4,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchvision-pyav",
+    "scenario": "sequential_range",
+    "frames": 18000,
+    "elapsed_s": 24.525,
+    "fps": 733.9,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  }
+]

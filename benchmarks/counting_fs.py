@@ -106,8 +106,10 @@ class CountingFS(pyfuse3.Operations):
         if path is None:
             raise pyfuse3.FUSEError(errno.ENOENT)
         fd = os.open(path, flags)
-        self._fd_map[inode] = fd
-        return pyfuse3.FileInfo(fh=inode, direct_io=True)
+        # Key by fd (not inode) so concurrent opens of the same file
+        # each get their own entry and don't overwrite each other.
+        self._fd_map[fd] = fd
+        return pyfuse3.FileInfo(fh=fd, direct_io=True)
 
     async def read(self, fh, offset, size):
         fd = self._fd_map.get(fh)
