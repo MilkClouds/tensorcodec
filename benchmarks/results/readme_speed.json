@@ -1,0 +1,57 @@
+[
+  {
+    "decoder": "avdec",
+    "scenario": "temporal_window",
+    "frames": 3520,
+    "elapsed_s": 18.9626,
+    "fps": 185.6,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": false
+  },
+  {
+    "decoder": "torchcodec(seek=exact,thr=1)",
+    "scenario": "temporal_window",
+    "frames": 3520,
+    "elapsed_s": 18.0106,
+    "fps": 195.4,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": false
+  },
+  {
+    "decoder": "decord",
+    "scenario": "temporal_window",
+    "frames": 2618,
+    "elapsed_s": 30.0396,
+    "fps": 87.2,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "opencv",
+    "scenario": "temporal_window",
+    "frames": 1716,
+    "elapsed_s": 30.0194,
+    "fps": 57.2,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  },
+  {
+    "decoder": "torchvision-pyav",
+    "scenario": "temporal_window",
+    "frames": 836,
+    "elapsed_s": 30.3579,
+    "fps": 27.5,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": true
+  }
+]

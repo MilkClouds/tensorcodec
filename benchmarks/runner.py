@@ -168,6 +168,10 @@ def _run_temporal_window(
             t_now = rng.uniform(cfg.window_seconds, duration - 0.001)
             queries.append((vp, [t_now + off for off in offsets]))
 
+    # Warmup: run a few queries to prime page cache / JIT / libraries
+    for vp, ts_window in queries[:3]:
+        decoder.get_frames_played_at(vp, ts_window)
+
     deadline = cfg.timeout_seconds
     times: list[float] = []
     total_frames = 0
@@ -201,6 +205,13 @@ def _run_sequential_range(
     decoder: VideoDecoderProtocol, video_paths: list[str], cfg: BenchmarkConfig,
 ) -> BenchmarkResult:
     """Decode every video start-to-end."""
+    # Pre-compute durations so we don't open each file twice inside the loop
+    durations = {vp: decoder.get_video_duration(vp) for vp in video_paths}
+
+    # Warmup: decode a short range from the first video
+    if video_paths:
+        decoder.get_frames_played_in_range(video_paths[0], 0.0, min(1.0, durations[video_paths[0]]))
+
     deadline = cfg.timeout_seconds
     times: list[float] = []
     total_frames = 0
@@ -209,8 +220,7 @@ def _run_sequential_range(
         t0 = time.perf_counter()
         run_frames = 0
         for vp in video_paths:
-            duration = decoder.get_video_duration(vp)
-            arr = decoder.get_frames_played_in_range(vp, 0.0, duration)
+            arr = decoder.get_frames_played_in_range(vp, 0.0, durations[vp])
             run_frames += arr.shape[0]
             if time.perf_counter() - t0 >= deadline:
                 timed_out = True
@@ -350,6 +360,8 @@ def main() -> None:
     parser.add_argument("--verify-fuse", action="store_true",
                         help="Run each scenario with AND without FUSE to measure FUSE overhead")
     parser.add_argument("--output", "-o", choices=["table", "json"], default="table")
+    parser.add_argument("--save", type=Path, default=None,
+                        help="Save results to a JSON file (e.g. results/speed.json)")
     parser.add_argument("--queries", "-q", type=int, default=5,
                         help="Temporal-window queries per video (default: 5)")
     parser.add_argument("--window", type=float, default=1.0,
@@ -466,6 +478,12 @@ def main() -> None:
                 print(f"  ERROR: {exc}")
 
     print_results(results, args.output)
+
+    if args.save:
+        args.save.parent.mkdir(parents=True, exist_ok=True)
+        with open(args.save, "w") as f:
+            json.dump([r.to_dict() for r in results], f, indent=2)
+        print(f"\nResults saved to {args.save}")
 
 
 if __name__ == "__main__":

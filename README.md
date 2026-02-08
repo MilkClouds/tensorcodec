@@ -2,6 +2,12 @@
 
 **Pure-Python video decoder for ML training — NumPy output, no PyTorch required.**
 
+Optimized for **random seek + clip read** — seek to an arbitrary timestamp, decode a short window of frames. This is the dominant access pattern in VLA and robotics training.
+
+![benchmark](benchmarks/results/readme.png)
+
+> 64 × 5 min videos, 640×480, libx264, 30 fps, keyframe interval 10. Disk I/O measured via FUSE passthrough filesystem.
+
 ## Features
 
 - **Playback-frame semantics**: `get_frames_played_at()`, `get_frames_played_in_range()`
