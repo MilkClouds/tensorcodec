@@ -26,9 +26,9 @@ with VideoDecoder("video.mp4") as decoder:
 
 | | decord | TorchCodec | **avdec** |
 |---|---|---|---|
-| **Frame at *t* seconds** | ❌ manual (`int(t*fps)`) | ✅ | ✅ |
-| **`pip install` only** | ⚠️ unmaintained since 2021 | ❌ needs PyTorch + FFmpeg | ✅ |
-| **Stable via PyAV** | ⚠️ unmaintained | ⚠️ [custom C++ bindings](docs/container_robustness.md) | ✅ FFmpeg via PyAV |
+| **Frame at *t* seconds** | ❌ index-only | ✅ | ✅ |
+| **PyTorch-free** | ✅ | ❌ | ✅ |
+| **Just `pip install`** | ⚠️ unmaintained since 2021 | ⚠️ PyTorch + CUDA + FFmpeg | ✅ |
 
 ---
 
