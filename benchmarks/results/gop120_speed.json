@@ -1,0 +1,35 @@
+[
+  {
+    "decoder": "avdec",
+    "scenario": "temporal_window",
+    "frames": 3520,
+    "elapsed_s": 23.7647,
+    "fps": 148.1,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": false
+  },
+  {
+    "decoder": "torchcodec(seek=approximate,thr=1)",
+    "scenario": "temporal_window",
+    "frames": 3520,
+    "elapsed_s": 16.8084,
+    "fps": 209.4,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": false
+  },
+  {
+    "decoder": "torchcodec(seek=exact,thr=1)",
+    "scenario": "temporal_window",
+    "frames": 3520,
+    "elapsed_s": 18.2513,
+    "fps": 192.9,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": false
+  }
+]

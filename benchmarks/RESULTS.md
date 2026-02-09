@@ -133,6 +133,27 @@ model inference, avoiding the CPU round-trip that this benchmark measures.
 | Bulk sequential decode | torchcodec | `seek_mode=approximate`, `thr=0` |
 | I/O-constrained storage | avdec or torchcodec (approximate) | Avoid exact seek |
 
+## Keyframe Interval (GOP) Ablation
+
+The main benchmark uses GOP 10. Shorter keyframe intervals reduce seek
+cost (fewer frames to decode from the nearest keyframe) but increase file
+size. All numbers below use the same temporal_window scenario (64 × 5 min,
+640×480, H.264, MP4, 3 runs, no FUSE).
+
+| GOP | File size (per 5 min) | avdec (FPS) | TC approx (FPS) | TC exact (FPS) | approx / avdec |
+|----:|----------------------:|------------:|-----------------:|---------------:|:--------------:|
+| 1 (all-intra) | 28.1 MB | 186 | **496** | 315 | 2.67× |
+| 2 · [LeRobot](https://github.com/huggingface/lerobot) default | 17.3 MB | 203 | **365** | 254 | 1.80× |
+| 10 | 10.1 MB | 167 | 227 | 193 | 1.36× |
+| 30 | 9.1 MB | 170 | 233 | 195 | 1.37× |
+| 120 | 7.9 MB | 148 | 209 | 193 | 1.41× |
+| 250 | 7.0 MB | 139 | 193 | 181 | 1.38× |
+
+At GOP ≤ 2, every frame is at most 1 frame from a keyframe, so seek
+overhead is near zero and pure decode throughput dominates — TorchCodec's
+C++ pipeline is 1.8–2.7× faster. At GOP ≥ 10 the gap narrows to ~1.4×,
+while file sizes drop 1.7–4× (10 MB vs 17–28 MB per 5 min clip).
+
 ## Methodology
 
 - **Timeout**: 20 s per scenario. ⏱ marks partial results.

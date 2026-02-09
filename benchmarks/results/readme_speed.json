@@ -22,6 +22,17 @@
     "timed_out": false
   },
   {
+    "decoder": "torchcodec(seek=exact,thr=1)",
+    "scenario": "temporal_window",
+    "frames": 3520,
+    "elapsed_s": 14.7576,
+    "fps": 238.5,
+    "io_bytes": null,
+    "io_calls": null,
+    "bytes_per_frame": null,
+    "timed_out": false
+  },
+  {
     "decoder": "decord",
     "scenario": "temporal_window",
     "frames": 1760,

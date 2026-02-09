@@ -4,12 +4,12 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://pypi.org/project/avdec/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/MilkClouds/avdec/blob/main/LICENSE)
 
-[**Installation**](#installation) | [**Quick Start**](#quick-start) | [**API Reference**](#api) | [**Benchmarks**](#benchmarks) | [**Contributing**](#contributing)
+[**Installation**](#installation) | [**Quick Start**](#quick-start) | [**API Reference**](#api) | [**Contributing**](#contributing)
 
-**Video decoder for ML training — just `pip install`, NumPy output, no PyTorch required.**
+**Timestamp-based video decoder for VLA / robotics training — `pip install avdec`, NumPy output, no PyTorch required.**
 
 ```bash
-pip install avdec     # That's it. No build step, all deps come from PyPI.
+pip install avdec
 ```
 
 ```python
@@ -22,23 +22,46 @@ with VideoDecoder("video.mp4") as decoder:
 
 ![benchmark](benchmarks/results/readme.png)
 
-> VLA-style random seek + clip read on 64 × 5 min videos (640×480, H.264, 30 fps, GOP 10). [Full results →](benchmarks/RESULTS.md)
+> VLA-style workload: random seek + clip read on 64 × 5 min videos (640×480, H.264, 30 fps, GOP 10). [Full results →](benchmarks/RESULTS.md)
+
+| | decord | TorchCodec | **avdec** |
+|---|---|---|---|
+| **Frame at *t* seconds** | ❌ manual (`int(t*fps)`) | ✅ | ✅ |
+| **`pip install` only** | ⚠️ unmaintained since 2021 | ❌ needs PyTorch + FFmpeg | ✅ |
+| **Stable via PyAV** | ⚠️ unmaintained | ⚠️ [custom C++ bindings](docs/container_robustness.md) | ✅ FFmpeg via PyAV |
 
 ---
 
 ## Why avdec?
 
-Most video decoders are built for **playback** or **sequential processing**. ML training — especially VLA (Vision-Language-Action) and robotics — does something fundamentally different: **random seek + short clip read**, thousands of times per epoch.
+avdec is a video decoder for **ML training data loading** — not for playback, editing, or streaming. It targets one specific access pattern: **random seek by timestamp + short clip read**, the same pattern found in VLA (Vision-Language-Action) and robotics training pipelines such as [LeRobot](https://github.com/huggingface/lerobot) and [MediaRef](https://github.com/open-world-agents/mediaref).
 
-avdec is built around this access pattern:
+### Timestamp-only by design
 
-1. **Truly self-contained `pip install`.** One command, any platform. PyAV wheels [bundle FFmpeg](https://pyav.org/docs/develop/overview/installation.html) — no system packages, no `conda install ffmpeg`, no version matrix. Unlike TorchCodec (which requires a separate FFmpeg installation), avdec's entire dependency tree comes from PyPI.
+In VLA training, you sample clips at random *times* across videos of varying frame rates. The question is always "what frame is displayed at *t* seconds?", not "give me frame #*N*".
 
-2. **Playback-frame semantics.** `get_frames_played_at(seconds)` returns the frame that *would be displayed* at each timestamp, matching the semantics of TorchCodec. No off-by-one frame surprises.
+avdec exposes only two methods — `get_frames_played_at(seconds)` and `get_frames_played_in_range(start, stop)` — and no index-based access. This is a deliberate choice:
 
-3. **I/O-efficient seeking.** On random-access workloads, avdec reads **20 KB/frame** from disk — on par with TorchCodec approximate mode, and **47× less** than TorchCodec exact mode. This matters on network storage and shared clusters.
+- **decord** provides `vr[i]` and `get_batch([i, j, k])` — index-first. To get "the frame at 2.5 s" you must manually compute `int(2.5 * fps)`, which breaks on variable-frame-rate videos.
+- **TorchCodec** supports both timestamp and index access. avdec shares its timestamp API and [playback-frame semantics](docs/playback_semantics.md) (`frame[i].pts ≤ t < frame[i+1].pts`), but drops the index path and the PyTorch dependency.
 
-4. **Video diagnostics built in.** `avdec.doctor()` inspects videos *before* training and reports issues (sparse keyframes, VFR, misplaced moov atom) with concrete `ffmpeg` fix commands.
+### What you get
+
+1. **Single `pip install`, nothing else.** PyAV wheels [bundle FFmpeg](https://pyav.basswood-io.com/docs/stable/overview/installation.html) — no system packages, no `conda install ffmpeg`, no version matrix. The entire dependency tree comes from PyPI.
+
+2. **Correct frame selection by default.** Playback-frame semantics guarantee the frame that *would be displayed* at each requested timestamp. avdec's output is [tested frame-by-frame against TorchCodec](tests/test_torchcodec_compat.py).
+
+3. **I/O-efficient seeking.** On random-access workloads avdec reads **20 KB/frame** from disk — on par with TorchCodec approximate mode (21.4 KB). This matters on network storage and shared clusters.
+
+4. **Stable across containers.** avdec delegates seeking to FFmpeg via [PyAV](https://pyav.basswood-io.com/) — performance is consistent across MP4, MKV, WebM, AVI, and MPEG-TS regardless of codec. [Details →](docs/container_robustness.md)
+
+<!-- 5. **Pre-training video diagnostics.** `avdec.doctor()` inspects videos and reports issues (sparse keyframes, VFR, misplaced moov atom) with concrete `ffmpeg` fix commands — before training begins. -->
+
+### What avdec does *not* do
+
+- Frame-index access (`decoder[i]`) — unnecessary for timestamp-based training pipelines.
+- GPU decoding — if you need NVDEC, use TorchCodec.
+- Sequential streaming — for sequential throughput, TorchCodec with multi-threading is faster (2,325 vs 654 FPS).
 
 ## Installation
 
@@ -84,7 +107,7 @@ with VideoDecoder("video.mp4") as decoder:
           f"{m.width}×{m.height} @ {float(m.average_rate):.1f} fps")
 ```
 
-### Diagnose videos for training
+<!-- ### Diagnose videos for training
 
 ```python
 import avdec
@@ -106,7 +129,7 @@ print(report)
    Recommendation: For training, re-encode with keyframe interval of 1 sec
 
    $ ffmpeg -i "video.mp4" -c:v libx264 -g 30 -c:a copy "video_fixed.mp4"
-```
+``` -->
 
 ## API
 
@@ -129,54 +152,9 @@ Dataclass returned by both methods:
 | `pts_seconds` | `np.ndarray` | `(N,)` float64 — presentation timestamps |
 | `duration_seconds` | `np.ndarray` | `(N,)` float64 — per-frame durations |
 
-### `doctor(path) -> DiagnosticReport`
+<!-- ### `doctor(path) -> DiagnosticReport`
 
-Analyzes a video for ML training suitability — keyframe intervals, frame rate consistency, moov atom position. Returns actionable findings with `ffmpeg` fix commands.
-
-## Benchmarks
-
-### Decode speed (random seek + clip read)
-
-| Decoder | FPS | Notes |
-|---------|----:|-------|
-| torchcodec (approximate, thr=1) | **276** | Fastest — requires PyTorch + FFmpeg |
-| torchcodec (exact, thr=1) | 239 | |
-| **avdec** | **188** | Single `pip install`, no config |
-| torchcodec (gpu, approximate) | 174 | Requires CUDA + `set_cuda_backend("beta")` |
-| decord | 88 | Unmaintained since 2021 |
-| opencv | 58 | |
-| torchvision-pyav | 28 | |
-
-### Disk I/O per frame (random seek)
-
-| Decoder | Bytes/Frame | Relative |
-|---------|------------:|---------:|
-| **avdec** | **20.1 KB** | 1.0× |
-| torchcodec (approximate) | 21.4 KB | 1.1× |
-| torchcodec (exact) | 952.7 KB | **47.4×** |
-
-For sequential decode, torchcodec with multi-threading dominates (2,325 FPS vs avdec's 654 FPS). avdec is optimized for seek-heavy workloads, not sequential throughput.
-
-→ [**Full benchmark methodology and results**](benchmarks/RESULTS.md)
-
-## Comparison with TorchCodec
-
-Both share **playback-frame semantics** and the same core API (`get_frames_played_at`, `get_frames_played_in_range`). Choose based on your constraints:
-
-| | TorchCodec | avdec |
-|---|---|---|
-| **Install** | `pip install torchcodec` + separate FFmpeg install | `pip install avdec` (FFmpeg bundled in wheel) |
-| **Wheel size** | ~183 MB CPU / ~805 MB CUDA (torch + torchcodec) | ~56 MB (av + numpy) |
-| **FFmpeg** | Must install separately (system pkg or conda) | Bundled inside PyAV wheel |
-| **Output** | `torch.Tensor` (NCHW) | `numpy.ndarray` (NCHW) |
-| **Random seek speed** | 276 FPS (approximate) | 188 FPS |
-| **Sequential speed** | 2,325 FPS | 654 FPS |
-| **GPU decoding** | ✅ NVDEC | ❌ CPU only |
-| **Disk I/O (seek)** | 21.4 KB/frame (approx) | 20.1 KB/frame |
-| **Video diagnostics** | ❌ | ✅ `doctor()` |
-
-**Pick avdec when** you want a single `pip install` with no system dependencies, don't need GPU decode, or your pipeline uses NumPy/JAX.
-**Pick TorchCodec when** you need maximum throughput and your stack is already PyTorch.
+Analyzes a video for ML training suitability — keyframe intervals, frame rate consistency, moov atom position. Returns actionable findings with `ffmpeg` fix commands. -->
 
 ## Contributing
 

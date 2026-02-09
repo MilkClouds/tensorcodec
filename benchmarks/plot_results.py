@@ -33,6 +33,7 @@ def _load(path: Path) -> list[dict]:
 _SPEED_NAMES = {
     "avdec": "avdec",
     "torchcodec(seek=approximate,thr=1)": "torchcodec (approx)",
+    "torchcodec(seek=exact,thr=1)": "torchcodec (exact)",
     "decord": "decord",
     "opencv": "opencv",
     "torchvision-pyav": "torchvision",
@@ -49,7 +50,7 @@ _IO_NAMES = {
 }
 
 # Order: avdec first (hero), then others; exact-seek variant last in I/O
-_SPEED_ORDER = ["avdec", "torchcodec (approx)", "decord", "opencv", "torchvision"]
+_SPEED_ORDER = ["avdec", "torchcodec (approx)", "torchcodec (exact)", "decord", "opencv", "torchvision"]
 _IO_ORDER = ["avdec", "torchcodec (approx)", "torchcodec (exact)"]
 
 

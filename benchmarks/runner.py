@@ -45,7 +45,7 @@ import numpy as np
 from benchmarks.decoders import get_decoder, list_available_decoders
 from benchmarks.protocol import BenchmarkResult, VideoDecoderProtocol
 
-DEFAULT_VIDEO_DIR = Path(__file__).resolve().parent.parent / ".bench_videos"
+DEFAULT_VIDEO_DIR = Path(__file__).resolve().parent.parent / ".bench_videos_gop10"
 
 
 # ---------------------------------------------------------------------------
