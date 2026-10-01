@@ -156,7 +156,7 @@ See the [compatibility contract](docs/compatibility.md) and
 
 - **Wheels:** Linux x86_64 and ARM64 (aarch64), glibc 2.17+, CPython 3.10+.
   NumPy must also provide a compatible wheel; newer Python versions may require
-  a newer glibc. macOS 14+ wheels support ARM64 and x86_64. Windows, musl/Alpine
+  a newer glibc. macOS 14+ wheels support Apple Silicon (Intel Macs: through 0.1.5). Windows, musl/Alpine
   and free-threaded Python wheels are not provided.
 - **Exact seeking:** scans packet timestamps when opening the decoder. Incorrect
   container keyframe flags can produce corrupt frames; repaired input or corrected

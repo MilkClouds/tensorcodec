@@ -78,8 +78,8 @@ within the color-conversion tolerances described in the
 
 ## macOS wheels
 
-Since 0.1.3, macOS 14+ wheels support Apple Silicon and Intel, bundling
-FFmpeg/OpenSSL with `delocate`. CI tests
+macOS 14+ wheels support Apple Silicon, bundling FFmpeg/OpenSSL with `delocate`
+(0.1.3 through 0.1.5 also had Intel wheels). CI tests
 the installed wheels and clean Python 3.10/3.13 environments. Developers can run
-`scripts/build_macos_wheel.sh` with Rust, Xcode tools, NASM, pkg-config, coreutils,
+`scripts/build_macos_wheel.sh` with Rust, Xcode tools, NASM, Meson, Ninja, pkg-config, coreutils,
 maturin and delocate installed in their build environment.
