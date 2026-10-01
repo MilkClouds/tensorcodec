@@ -62,12 +62,6 @@ python -m pip install tensorcodec
 Linux wheels bundle shared FFmpeg libraries. Source builds need Rust, libclang
 and FFmpeg 7 development headers/libraries.
 
-Before the first PyPI upload, install a local wheel:
-
-```sh
-python -m pip install dist/tensorcodec-*.whl
-```
-
 ## Use
 
 ```python
