@@ -11,7 +11,7 @@ CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
 <!-- wheel-size-badge:start -->
 <a href="#package-size"><img src="https://img.shields.io/badge/wheel-10.5%20MiB-blue" alt="Wheel download"></a>
 <!-- wheel-size-badge:end -->
-<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="License: MIT"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue" alt="License: Apache-2.0"></a>
 </p>
 
 [Quick start](#quick-start) · [Features](#features) · [Package size](#package-size) · [Compatibility](docs/compatibility.md)
@@ -188,4 +188,5 @@ Tests generate media with FFmpeg/ffprobe and Python's `wave` module.
 
 </details>
 
-TensorCodec's own code is [MIT licensed](LICENSE).
+TensorCodec's own code is licensed under [Apache-2.0](LICENSE).
+Versions through v0.1.4 were released under MIT.

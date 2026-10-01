@@ -3,7 +3,7 @@ name = "tensorcodec"
 version = "0.1.4"
 description = "NumPy audio/video decoding with TorchCodec-compatible playback semantics"
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 license-files = ["LICENSE", "licenses/*"]
 authors = [{ name = "Suhwan Choi", email = "milkclouds00@gmail.com" }]
 requires-python = ">=3.10"
