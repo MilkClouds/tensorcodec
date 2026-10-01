@@ -10,6 +10,31 @@ from tensorcodec.decoders import VideoDecoder
 from tests.utils import as_numpy, run_ffmpeg
 
 
+@pytest.mark.parametrize("dimension_order", ["NCHW", "NHWC"])
+def test_sorted_timestamp_batch_keeps_native_storage(videos, dimension_order, monkeypatch):
+    with VideoDecoder(videos["cfr"].path, seek_mode="timestamp", dimension_order=dimension_order) as decoder:
+        native = decoder._native
+        captured = []
+
+        class RecordingDecoder:
+            def decode_timestamps(self, *args):
+                result = native.decode_timestamps(*args)
+                captured.append(result[0])
+                return result
+
+            def close(self):
+                native.close()
+
+        monkeypatch.setattr(decoder, "_native", RecordingDecoder())
+        batch = decoder.get_frames_played_at([0, 0.01, 0.1])
+        assert np.shares_memory(batch.data, captured[0])
+        np.testing.assert_array_equal(batch.data[0], batch.data[1])
+        saved = batch.data[1].copy()
+        batch.data[0] ^= 255
+        np.testing.assert_array_equal(batch.data[1], saved)
+    np.testing.assert_array_equal(batch.data[1], saved)
+
+
 def test_timestamp_boundaries_order_and_repeated_calls(video, oracle):
     times = np.concatenate((video.pts, video.pts + video.durations / 2, np.nextafter(video.pts[1:], -np.inf)))
     times = times[::-1].tolist() + [float(video.pts[0])] * 2

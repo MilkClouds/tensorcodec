@@ -348,6 +348,8 @@ class VideoDecoder(_Decoder):
                     times.tolist(),
                     "native" if self.output_format == "native" else self._dtype.name,
                 )
+                if np.array_equal(times, values):
+                    return self._video_batch(data, pts, durations)
                 return self._video_batch(data[inverse], np.asarray(pts)[inverse], np.asarray(durations)[inverse])
             return self.get_frames_at(self._indices_at_times(seconds))
 
