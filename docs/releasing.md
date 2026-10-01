@@ -47,3 +47,14 @@ The local Linux build is reproducible using `scripts/build_linux_wheel.sh` insid
 `quay.io/pypa/manylinux_2_28_x86_64` with Rust, maturin, libclang, NASM and Perl.
 Both native source archives are version- and checksum-pinned. Their licensing
 and source links are recorded in `licenses/README.md`.
+
+## CI versus release builds
+
+- Ordinary CI uses prebuilt conda-forge FFmpeg 7.1.1 through Pixi, including its
+  headers and shared libraries. It builds only the TensorCodec extension.
+- PyPI wheels use the smaller LGPL FFmpeg 7.1.5 build plus OpenSSL 3.5.9.
+  Their native prefix is cached by the build-script checksums. This preserves the
+  wheel's codec set, dependency size and licensing rather than bundling the full
+  conda-forge dependency graph.
+- Release validation still tests the installed repaired wheel. The fixture CLI
+  can be FFmpeg 6 or 7; fixtures explicitly remove auxiliary sentinel packets.

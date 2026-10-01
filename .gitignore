@@ -5,6 +5,7 @@
 # Rust build artifacts
 /native/target/
 /.ffmpeg/
+/.native-deps/
 *.pyd
 *.dylib
 

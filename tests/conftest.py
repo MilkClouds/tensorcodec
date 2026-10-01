@@ -121,10 +121,16 @@ def videos(tmp_path_factory):
         args = ["-framerate", "10", "-i", root / "%02d.ppm"]
         if filters:
             args += ["-vf", filters]
-        run_ffmpeg(*args, "-frames:v", "13" if name == "vfr" else "12", "-fps_mode", "vfr", *codec, path)
+        encoded = root / "vfr-with-sentinel.mp4" if name == "vfr" else path
+        run_ffmpeg(*args, "-frames:v", "13" if name == "vfr" else "12", "-fps_mode", "vfr", *codec, encoded)
+        if name == "vfr":
+            # FFmpeg 6 and 7 differ in whether the sentinel is marked DISCARD.
+            # Remux exactly the real packets, preserving the last 0.2 s duration.
+            run_ffmpeg("-i", encoded, "-c:v", "copy", "-frames:v", "12", path)
         result[name] = case_from_packets(path, levels)
     np.testing.assert_allclose(result["cfr"].pts, np.arange(12) / 10, atol=1e-12)
     np.testing.assert_allclose(result["vfr"].pts, [0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1, 1.2, 1.4, 1.6, 1.8])
+    np.testing.assert_allclose(result["vfr"].durations, [0.1] * 4 + [0.2] * 8, atol=1e-12)
     np.testing.assert_allclose(result["offset"].pts, 2 + np.arange(12) / 10)
 
     # Put audio first so video stream_index=1 differs from video-list ordinal 0.
