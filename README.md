@@ -23,7 +23,8 @@ CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
 - **Validated playback semantics.** Frame selection, ordering, timestamps and audio
   ranges are checked against TorchCodec 0.17.0 and independently generated media.
 - **Efficient batch decoding.** Rust/PyO3 bindings to FFmpeg process frame batches
-  in a single native call, avoiding per-frame Python calls.
+  in a single native call, avoiding per-frame Python calls. Closing a decoder
+  releases its FFmpeg resources without waiting for Python's cyclic GC.
 - **Lightweight installation.** Linux wheels are 10.3–10.5 MiB (v0.1.3), including
   FFmpeg shared libraries. NumPy is the only Python dependency.
 
@@ -51,6 +52,17 @@ with AudioDecoder("audio.wav", sample_rate=16000, num_channels=1) as audio:
 
 Arrays keep their storage after the decoder closes. Paths, URLs, encoded bytes,
 1-D uint8 arrays and seekable file objects are supported.
+
+For time-based windows without an initial full packet scan (unreleased):
+
+```python
+with VideoDecoder("video.mkv", seek_mode="timestamp") as decoder:
+    frames = decoder.get_frames_played_at([10.0, 10.1, 10.2])
+```
+
+This TensorCodec extension selects by actual PTS and retries seeks that overshoot.
+It supports time queries, including ranges with explicit `fps`, but not frame
+indices, `len(decoder)`, or `get_all_frames()`. See [the contract](docs/compatibility.md#timestamp-mode).
 
 ## Features
 

@@ -81,3 +81,24 @@ indexing and FPS resampling. RGB results retain their existing behavior. Native
 mode preserves encoded pixel coordinates, including inputs with display matrices.
 Playback selection follows the same TorchCodec contract as RGB, including the
 frame overlapping a range's start; it does not copy PyAV's legacy PTS-only range rule.
+## Timestamp mode
+
+`seek_mode="timestamp"` is an opt-in TensorCodec extension. Existing `exact` and
+`approximate` modes are unchanged. It skips the initial full packet scan and
+selects frames by `PTS[i] <= t < PTS[i+1]`, without average-FPS conversion.
+The final frame requires a positive decoded duration; requests beyond that
+duration, before the first frame, or with nonfinite times fail explicitly.
+Missing/non-increasing decoded timestamps also fail rather than guessing.
+
+Queries are sorted and deduplicated, then returned in the caller's order. Nearby
+queries share decoding and one-frame lookahead; known later container keyframes
+allow seeking across gaps. Overshooting seeks retry at exponentially earlier
+positions, down to the stream start. If no frame at/before the request can be
+recovered, decoding fails. Bad or absent indexes can still require substantial I/O.
+
+Frame indices, slices, `len`, `get_all_frames`, custom mappings and ranges without
+explicit `fps` are unsupported. FPS ranges retain the regular mode's resampling
+timestamps and durations. Header timing remains advisory; `metadata.num_frames`
+and content-derived metadata are `None`. No complete frame index is implied.
+RGB/native formats, dtype, rotation, array ownership and file-like input follow
+the existing output contracts. Decoder construction may still probe media data.

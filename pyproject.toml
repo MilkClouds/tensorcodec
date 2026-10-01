@@ -37,13 +37,11 @@ features = ["pyo3/extension-module"]
 include = [
     { path = "scripts/*.sh", format = "sdist" },
     { path = "scripts/*.py", format = "sdist" },
-    { path = "docs/compatibility.md", format = "sdist" },
-    { path = "docs/playback_semantics.md", format = "sdist" },
-    { path = "docs/releasing.md", format = "sdist" },
-    { path = "docs/package_size.md", format = "sdist" },
-    { path = "docs/system_ffmpeg.md", format = "sdist" },
+    { path = "docs/*.md", format = "sdist" },
     { path = "packaging/*.json", format = "sdist" },
-    { path = "tests/*.py", format = "sdist" },
+    { path = "tests/**/*.py", format = "sdist" },
+    { path = "benchmarks/**/*.py", format = "sdist" },
+    { path = "benchmarks/*.md", format = "sdist" },
 ]
 
 [tool.pytest.ini_options]
