@@ -43,9 +43,13 @@ pub enum VideoRequest {
     Timestamps(Vec<f64>),
 }
 
-/// A geometric step on RGB frames, in the decoded (pre-rotation) frame's coordinates.
+/// A geometric step on RGB frames; a rotation (counterclockwise quarter turns) comes first, then
+/// crops and resizes in the rotated frame's coordinates.
 #[derive(Clone, Copy, PartialEq)]
 pub enum Op {
+    Rotate {
+        turns: i32,
+    },
     Crop {
         top: i32,
         left: i32,
@@ -212,6 +216,7 @@ pub struct Decoder {
     scale: *mut av::SwsContext,
     scale_config: Option<(i32, i32, i32, i32)>,
     resizers: Vec<Resizer>,
+    rotated: Vec<u8>,
     io: *mut av::AVIOContext,
     memory: Option<Box<Reader>>,
     index: i32,
@@ -263,6 +268,7 @@ impl Decoder {
             scale: ptr::null_mut(),
             scale_config: None,
             resizers: Vec::new(),
+            rotated: Vec::new(),
             io: ptr::null_mut(),
             memory: None,
             index: 0,
@@ -835,6 +841,11 @@ impl Decoder {
         let (mut width, mut height) = (width, height);
         for op in ops {
             match *op {
+                Op::Rotate { turns } => {
+                    if turns % 2 == 1 {
+                        (width, height) = (height, width);
+                    }
+                }
                 Op::Crop {
                     top,
                     left,
@@ -1087,6 +1098,36 @@ impl Decoder {
         let mut resize = 0;
         for op in ops {
             match *op {
+                Op::Rotate { turns } => {
+                    // As NumPy's rot90 over (height, width): `turns` counterclockwise quarter turns.
+                    let (w, h) = if turns % 2 == 1 {
+                        (height, width)
+                    } else {
+                        (width, height)
+                    };
+                    let row = w as usize * pixel_bytes as usize;
+                    self.rotated.resize(row * h as usize, 0);
+                    for i in 0..h as isize {
+                        for j in 0..w as isize {
+                            let (y, x) = match turns {
+                                1 => (j, width as isize - 1 - i),
+                                2 => (height as isize - 1 - i, width as isize - 1 - j),
+                                3 => (height as isize - 1 - j, i),
+                                _ => (i, j),
+                            };
+                            ptr::copy_nonoverlapping(
+                                data.offset(y * linesize as isize + x * pixel_bytes),
+                                self.rotated
+                                    .as_mut_ptr()
+                                    .offset(i * row as isize + j * pixel_bytes),
+                                pixel_bytes as usize,
+                            );
+                        }
+                    }
+                    data = self.rotated.as_ptr();
+                    linesize = row as i32;
+                    (width, height) = (w, h);
+                }
                 Op::Crop {
                     top,
                     left,

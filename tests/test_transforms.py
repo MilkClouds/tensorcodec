@@ -47,6 +47,9 @@ def test_resize_is_bilinear_in_rgb(scene, size):
 def test_crops_select_exact_pixels(scene):
     full = _frames(scene)
     np.testing.assert_array_equal(_frames(scene, [CenterCrop((31, 50))]), full[:, 16:47, 23:73])
+    # half-pixel offsets round to even: 51 / 2 -> 26, 79 / 2 -> 40; 35 / 2 -> 18, 47 / 2 -> 24
+    np.testing.assert_array_equal(_frames(scene, [CenterCrop((13, 17))]), full[:, 26:39, 40:57])
+    np.testing.assert_array_equal(_frames(scene, [CenterCrop((29, 49))]), full[:, 18:47, 24:73])
     np.random.seed(3)
     top, left = np.random.randint(0, 64 - 20 + 1), np.random.randint(0, 96 - 30 + 1)
     np.random.seed(3)
@@ -77,8 +80,8 @@ def test_transforms_apply_after_display_rotation(scene, tmp_path, angle):
         np.testing.assert_array_equal(_frames(path, [crop]), full[:, top : top + height - 7, left : left + width - 11])
     resized = _frames(path, [Resize((height // 2, width // 3))])
     assert resized.shape == (3, height // 2, width // 3, 3)
-    upright = _frames(scene, [Resize((width // 3, height // 2) if angle % 180 else (height // 2, width // 3))])
-    np.testing.assert_array_equal(resized, np.rot90(upright, angle // 90, axes=(1, 2)))
+    expected = _ffmpeg_resized(path, height // 2, width // 3)[[4, 0, 4]]  # FFmpeg rotates (autorotate), then scales
+    np.testing.assert_allclose(resized, expected, atol=1, rtol=0)
 
 
 def test_high_depth_output_resizes_at_depth(scene):
@@ -127,18 +130,23 @@ def test_torchcodec_and_torchvision_transforms_convert(scene):
         VideoDecoder(scene, transforms=[tv])
 
 
-@pytest.mark.parametrize("width", [96, 64])  # torchcodec: swscale at multiples of 32, filtergraph otherwise
-def test_transforms_match_torchcodec(oracle, scene, tmp_path, width):
+@pytest.mark.parametrize("case", ["swscale", "filtergraph", "rotated"])  # torchcodec's paths: width % 32, rotation
+def test_transforms_match_torchcodec(oracle, scene, tmp_path, case):
     import torchcodec.transforms as tct
 
     path = scene
-    if width != 96:
+    if case == "filtergraph":
         path = tmp_path / "narrow.mp4"
-        run_ffmpeg("-i", scene, "-vf", f"crop={width}:64", "-c:v", "libx264", "-crf", "0", path)
+        run_ffmpeg("-i", scene, "-vf", "crop=64:64", "-c:v", "libx264", "-crf", "0", path)
+    if case == "rotated":
+        path = tmp_path / "rotated.mp4"
+        run_ffmpeg("-display_rotation", 90, "-i", scene, "-c", "copy", path)
     for ours, theirs in [
         ([Resize((32, 48))], [tct.Resize((32, 48))]),
         ([Resize((40, 70))], [tct.Resize((40, 70))]),
         ([CenterCrop((30, 40))], [tct.CenterCrop((30, 40))]),
+        ([CenterCrop((13, 17))], [tct.CenterCrop((13, 17))]),
+        ([CenterCrop((29, 49))], [tct.CenterCrop((29, 49))]),
         ([CenterCrop((40, 40)), Resize((20, 24))], [tct.CenterCrop((40, 40)), tct.Resize((20, 24))]),
     ]:
         actual = VideoDecoder(path, transforms=ours).get_frames_at([4, 0, 4])

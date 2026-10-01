@@ -62,13 +62,13 @@ class _Crop(DecoderTransform):
 
 
 class CenterCrop(_Crop):
-    """Crop `size` (height, width) from the center; an odd margin leaves the extra pixel at the bottom and right,
-    as TorchCodec does (TorchVision rounds half to even)."""
+    """Crop `size` (height, width) from the center; a half-pixel offset rounds to even, as in TorchCodec and
+    TorchVision."""
 
     def _op(self, input_dims):
         self._fits(input_dims)
-        top = (input_dims[0] - self.size[0]) // 2
-        left = (input_dims[1] - self.size[1]) // 2
+        top = round((input_dims[0] - self.size[0]) / 2)
+        left = round((input_dims[1] - self.size[1]) / 2)
         return ("crop", top, left, *self.size), self.size
 
 
@@ -112,24 +112,11 @@ def _convert(transform):
 
 
 def _pipeline(transforms, dims, turns):
-    """Native operations for `transforms` on frames of display size `dims` (height, width), which the decoder rotates
-    by `turns` quarter turns counterclockwise after decoding: each crop and resize, mapped into the decoded frame's
-    coordinates. Returns (ops, display size of the output)."""
-    ops = []
+    """Native operations for `transforms` on frames of display size `dims` (height, width): the display rotation
+    (`turns` quarter turns counterclockwise) first when there are transforms, as TorchCodec applies it, then each crop
+    and resize. Returns (ops, display size of the output)."""
+    ops = [("rotate", turns, 0, 0, 0)] if transforms and turns else []
     for transform in transforms:
-        (kind, *values), out = _convert(transform)._op(dims)
-        if kind == "resize":
-            height, width = values
-            ops.append(("resize", 0, 0, *((width, height) if turns % 2 else (height, width))))
-        else:
-            top, left, height, width = values
-            H, W = dims
-            if turns == 1:
-                top, left, height, width = left, H - top - height, width, height
-            elif turns == 2:
-                top, left = H - top - height, W - left - width
-            elif turns == 3:
-                top, left, height, width = W - left - width, top, width, height
-            ops.append(("crop", top, left, height, width))
-        dims = out
+        (kind, *values), dims = _convert(transform)._op(dims)
+        ops.append((kind, 0, 0, *values) if kind == "resize" else (kind, *values))
     return ops, dims

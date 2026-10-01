@@ -149,7 +149,7 @@ impl Decoder {
         transforms: Vec<(String, i32, i32, i32, i32)>,
     ) -> PyResult<(PyObject, Vec<f64>, Vec<f64>)> {
         let inner = self.inner.as_mut().ok_or_else(closed)?;
-        // ("crop", top, left, height, width) or ("resize", _, _, height, width)
+        // ("rotate", turns, ..), ("crop", top, left, height, width) or ("resize", _, _, height, width)
         let ops = transforms
             .into_iter()
             .map(|(kind, a, b, height, width)| match kind.as_str() {
@@ -160,6 +160,9 @@ impl Decoder {
                     width,
                 }),
                 "resize" => Ok(ffmpeg::Op::Resize { height, width }),
+                "rotate" => Ok(ffmpeg::Op::Rotate {
+                    turns: a.rem_euclid(4),
+                }),
                 _ => Err(PyValueError::new_err("invalid transform")),
             })
             .collect::<PyResult<Vec<_>>>()?;

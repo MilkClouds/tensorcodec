@@ -295,7 +295,7 @@ class VideoDecoder(_Decoder):
             return self._video_batch(data, pts, durations)
 
     def _video_batch(self, data, pts, durations):
-        if self._rotation_turns:
+        if self._rotation_turns and not self._ops:  # with transforms, the native pipeline rotated first
             # Copy to keep positive strides for consumers such as torch.from_numpy.
             data = np.rot90(data, self._rotation_turns, axes=(1, 2)).copy()
         if self._order == "NCHW":
