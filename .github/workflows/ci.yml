@@ -45,8 +45,8 @@ jobs:
           "$prefix/bin/ffmpeg" -version
       - name: Static checks
         run: |
-          ruff check src/tensorcodec tests scripts/configure_oracle_ffmpeg.py
-          ruff format --check src/tensorcodec tests scripts/configure_oracle_ffmpeg.py
+          ruff check src/tensorcodec tests scripts
+          ruff format --check src/tensorcodec tests scripts
           cargo fmt --manifest-path native/Cargo.toml --check
           cargo clippy --manifest-path native/Cargo.toml --locked -- -D warnings
       - name: Build extension against prebuilt FFmpeg

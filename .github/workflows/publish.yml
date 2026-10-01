@@ -45,7 +45,7 @@ jobs:
             export PKG_CONFIG_PATH="$prefix/openssl/lib/pkgconfig"
             export LD_LIBRARY_PATH="$prefix/openssl/lib:$prefix/ffmpeg/lib"
             if [ ! -f "$prefix/ffmpeg/lib/libavformat.so.61" ]; then
-              yum install -y perl
+              yum install -y perl perl-IPC-Cmd
               if [ "$(uname -m)" = x86_64 ]; then yum install -y nasm; fi
               bash scripts/build_openssl.sh "$prefix/openssl"
               bash scripts/build_ffmpeg.sh "$prefix/ffmpeg"
