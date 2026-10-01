@@ -103,6 +103,7 @@ A batch crosses the Python/Rust boundary once. Native decoding releases the GIL.
 # Requires Rust, Clang/libclang, pkg-config and FFmpeg 7 development libraries.
 python -m venv .venv
 . .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install numpy pytest ruff 'maturin>=1.8,<2'
 maturin develop --locked
 
