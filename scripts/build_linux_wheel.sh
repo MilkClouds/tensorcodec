@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run inside manylinux2014 with Rust, maturin, libclang, NASM and Perl installed.
+# Run inside manylinux2014 with Rust, maturin, libclang, NASM, Meson, Ninja and Perl installed.
 set -euo pipefail
 export BINDGEN_EXTRA_CLANG_ARGS="-I$(gcc -print-file-name=include)${BINDGEN_EXTRA_CLANG_ARGS:+ $BINDGEN_EXTRA_CLANG_ARGS}"
 build_prefix="${TENSORCODEC_NATIVE_PREFIX:-/opt/tensorcodec}"

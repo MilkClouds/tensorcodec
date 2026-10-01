@@ -35,6 +35,20 @@ def generate(root: Path):
         ],
         check=True,
     )
+    # AV1 (dav1d); the reference frames come from the generating FFmpeg's own decode.
+    av1 = root / "av1.mkv"
+    subprocess.run(
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+         "testsrc2=size=64x64:rate=10:duration=1", "-c:v", "libaom-av1", "-cpu-used", "8", "-g", "4",
+         "-pix_fmt", "yuv420p", str(av1)],
+        check=True,
+    )  # fmt: skip
+    reference = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", str(av1), "-pix_fmt", "rgb24", "-f", "rawvideo", "-"],
+        capture_output=True,
+        check=True,
+    ).stdout
+    (root / "av1.rgb").write_bytes(reference)
     samples = np.stack([np.arange(8000) % 1000, -(np.arange(8000) % 1000)], axis=1).astype("<i2")
     with wave.open(str(root / "audio.wav"), "wb") as audio:
         audio.setparams((2, 2, 8000, 8000, "NONE", "not compressed"))
@@ -96,6 +110,13 @@ def check(root: Path):
         expected = np.arange(1000, dtype=np.float32) / 32768
         np.testing.assert_allclose(audio.data[0], expected, atol=1e-7)
         np.testing.assert_allclose(audio.data[1], -expected, atol=1e-7)
+    expected = np.frombuffer((root / "av1.rgb").read_bytes(), dtype=np.uint8).reshape(10, 64, 64, 3)
+    with VideoDecoder(root / "av1.mkv", dimension_order="NHWC") as decoder:
+        assert len(decoder) == 10
+        batch = decoder.get_frames_at([9, 0, 5])
+        np.testing.assert_allclose(batch.pts_seconds, [0.9, 0.0, 0.5])
+        diff = np.abs(batch.data.astype(np.int16) - expected[[9, 0, 5]])
+        assert diff.max() <= 2, diff.max()  # RGB conversion may round differently from the FFmpeg CLI
     for fmt, channels, storage in [("gray12le", 1, "<u2"), ("gray16be", 1, ">u2"), ("rgba", 4, "u1")]:
         expected = np.frombuffer((root / f"{fmt}.raw").read_bytes(), dtype=storage).reshape(3, 11, 19, channels)
         with VideoDecoder(root / f"{fmt}.nut", output_format="native") as decoder:
