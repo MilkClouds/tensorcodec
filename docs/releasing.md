@@ -1,11 +1,11 @@
 # Publishing TensorCodec
 
-Release version: `0.1.2`. Distribution and import name: `tensorcodec`.
+Release version: `0.1.3`. Distribution and import name: `tensorcodec`.
 Binary wheels target Linux x86_64 and ARM64 (aarch64), glibc 2.17+, CPython 3.10+.
 NumPy must also provide a compatible wheel for the selected Python/glibc pair.
 The wheel bundles shared FFmpeg 7.1.5 and OpenSSL 3.5.9 LTS; its only Python
-runtime dependency is NumPy. The source branch also builds macOS 14+ ARM64/x86_64 wheels with the same minimal
-runtime; these first ship after 0.1.2. Windows wheels are not provided.
+runtime dependency is NumPy. macOS 14+ ARM64/x86_64 wheels bundle the same minimal
+runtime. Windows wheels are not provided.
 
 ## Trusted publisher configuration
 
@@ -25,7 +25,7 @@ is needed. Repository visibility does not need to change for a release.
 
 ## Release
 
-Run the **Publish to PyPI** workflow on `main`. It builds the portable Linux wheels
+Run the **Publish to PyPI** workflow on `main`. It builds the portable Linux/macOS wheels
 and source distribution, checks package metadata, validates the pinned oracle
 and compares playback before uploading through PyPI Trusted Publishing. It uses
 the existing GitHub `pypi` environment. Publication fails if authorization is
@@ -37,8 +37,8 @@ gh workflow run publish.yml --repo MilkClouds/tensorcodec --ref main
 
 For a build and full validation without uploading, pass `--field publish=false`.
 
-Check the workflow and https://pypi.org/project/tensorcodec/0.1.2/ before reporting
-success. Verify a fresh `uv pip install tensorcodec==0.1.2` and a decode without
+Check the workflow and https://pypi.org/project/tensorcodec/0.1.3/ before reporting
+success. Verify a fresh `uv pip install tensorcodec==0.1.3` and a decode without
 Torch/PyAV on both architectures. Update the version before subsequent releases;
 PyPI versions cannot be overwritten.
 

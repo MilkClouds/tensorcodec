@@ -37,7 +37,7 @@ test -f "$FFMPEG_DIR/include/libavcodec/avcodec.h"
 test -f "$FFMPEG_DIR/lib/libavcodec.so.61"
 
 uv venv
-uv pip install --no-binary tensorcodec 'tensorcodec==0.1.2'
+uv pip install --no-binary tensorcodec 'tensorcodec==0.1.3'
 ```
 
 The version/build constraint avoids silently selecting an incompatible FFmpeg
@@ -78,8 +78,8 @@ within the color-conversion tolerances described in the
 
 ## macOS wheels
 
-The source branch builds macOS 14+ wheels for Apple Silicon and Intel, bundling
-FFmpeg/OpenSSL with `delocate`. They are not part of the 0.1.2 release. CI tests
+Since 0.1.3, macOS 14+ wheels support Apple Silicon and Intel, bundling
+FFmpeg/OpenSSL with `delocate`. CI tests
 the installed wheels and clean Python 3.10/3.13 environments. Developers can run
 `scripts/build_macos_wheel.sh` with Rust, Xcode tools, NASM, pkg-config, coreutils,
 maturin and delocate installed in their build environment.

@@ -54,8 +54,7 @@ Arrays keep their storage after the decoder closes. Paths, URLs, encoded bytes,
 
 ## Features
 
-Current source relative to TorchCodec 0.17.0. Native output and macOS wheels
-are not in the published 0.1.2 release.
+TensorCodec 0.1.3 relative to TorchCodec 0.17.0.
 ✓ supported · △ partial support · — not implemented.
 
 | Component | TensorCodec | TorchCodec 0.17.0 |
@@ -136,8 +135,8 @@ See the [compatibility contract](docs/compatibility.md) and
 
 - **Wheels:** Linux x86_64 and ARM64 (aarch64), glibc 2.17+, CPython 3.10+.
   NumPy must also provide a compatible wheel; newer Python versions may require
-  a newer glibc. macOS, Windows, musl/Alpine and free-threaded Python wheels are
-  not release targets yet.
+  a newer glibc. macOS 14+ wheels support ARM64 and x86_64. Windows, musl/Alpine
+  and free-threaded Python wheels are not provided.
 - **Exact seeking:** scans packet timestamps when opening the decoder. Incorrect
   container keyframe flags can produce corrupt frames; repaired input or corrected
   frame mappings are needed in that case.

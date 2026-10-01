@@ -51,7 +51,7 @@ download; candidate builds never update it.
 To reproduce or recover a documentation update after publication:
 
 ```sh
-uv run --no-project python scripts/update_size_comparison.py --version 0.1.2
+uv run --no-project python scripts/update_size_comparison.py --version 0.1.3
 ```
 
 Review and commit `README.md` and `packaging/size-baseline.json` together. The script
