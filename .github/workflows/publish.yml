@@ -27,7 +27,8 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: '3.12'
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: native-cache
         with:
           path: .native-deps
           key: manylinux2014-${{ matrix.target }}-${{ hashFiles('scripts/build_nasm.sh', 'scripts/build_openssl.sh', 'scripts/build_ffmpeg.sh') }}
@@ -41,10 +42,11 @@ jobs:
           before-script-linux: |
             /opt/python/cp310-cp310/bin/python -m pip install libclang==18.1.1
             export LIBCLANG_PATH="$(/opt/python/cp310-cp310/bin/python -c 'from clang import cindex; print(cindex.Config.library_path)')"
+            export BINDGEN_EXTRA_CLANG_ARGS="-I$(gcc -print-file-name=include)"
             prefix="$PWD/.native-deps"
             export PKG_CONFIG_PATH="$prefix/openssl/lib/pkgconfig"
             export LD_LIBRARY_PATH="$prefix/openssl/lib:$prefix/ffmpeg/lib"
-            if [ ! -f "$prefix/ffmpeg/lib/libavformat.so.61" ]; then
+            if [ ! -f "$prefix/ready" ]; then
               yum install -y perl-core
               if [ "$(uname -m)" = x86_64 ]; then
                 bash scripts/build_nasm.sh "$prefix/nasm"
@@ -52,8 +54,19 @@ jobs:
               fi
               bash scripts/build_openssl.sh "$prefix/openssl"
               bash scripts/build_ffmpeg.sh "$prefix/ffmpeg"
+              touch "$prefix/ready"
             fi
             export FFMPEG_DIR="$prefix/ffmpeg"
+      - name: Check native cache completeness
+        if: always()
+        id: native-ready
+        run: |
+          if [ -f .native-deps/ready ]; then echo 'ready=true' >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/cache/save@v4
+        if: always() && steps.native-ready.outputs.ready == 'true' && steps.native-cache.outputs.cache-hit != 'true'
+        with:
+          path: .native-deps
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
       - name: Build source distribution
         if: matrix.target == 'x86_64'
         run: uvx --from 'maturin>=1.8,<2' maturin sdist --out dist
