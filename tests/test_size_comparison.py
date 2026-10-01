@@ -62,8 +62,10 @@ def test_reference_version_matches_playback_oracle():
     assert f'"torchcodec=={version}"' in (root / "pyproject.toml").read_text()
 
 
-@pytest.mark.parametrize("failure", ["hash", "size", None])
-def test_measures_published_wheel_and_verifies_hash_and_size(tmp_path, monkeypatch, failure):
+@pytest.mark.parametrize(
+    "source,failure", [("pypi", "hash"), ("pypi", "size"), ("pypi", None), ("pinned", "hash"), ("pinned", None)]
+)
+def test_measures_published_wheel_and_verifies_hash_and_size(tmp_path, monkeypatch, failure, source):
     import hashlib
     from zipfile import ZipFile
 
@@ -86,11 +88,14 @@ def test_measures_published_wheel_and_verifies_hash_and_size(tmp_path, monkeypat
     elif failure == "size":
         items[0]["size"] += 1
     monkeypatch.setattr(comparison, "release_metadata", lambda *_: {"urls": items})
+    urls = None
+    if source == "pinned":
+        urls = [f"{item['url']}#sha256={item['digests']['sha256']}" for item in items]
     if failure:
         with pytest.raises(ValueError, match="hash/size mismatch"):
-            comparison.measure_release("codec", "1.0", "cp310")
+            comparison.measure_release("codec", "1.0", "cp310", urls)
     else:
-        release = comparison.measure_release("codec", "1.0", "cp310")
+        release = comparison.measure_release("codec", "1.0", "cp310", urls)
         assert len(release["wheels"]) == 2
         assert all(wheel["unpacked_bytes"] == 5 for wheel in release["wheels"])
         assert release["wheels"][0]["sha256"] == items[0]["digests"]["sha256"]
@@ -104,9 +109,23 @@ def test_published_comparison_includes_pyav_and_stays_in_sync():
     policy = json.loads((root / "packaging/size-policy.json").read_text())
     assert snapshot["pyav"]["version"] == policy["pyav"]["version"]
     assert policy["pyav"]["python_tag"] == policy["comparison"]["python_tag"]
-    for project in ("torchcodec", "pyav"):
+    assert snapshot["torch"]["version"] == policy["torch"]["version"]
+    for project in ("torchcodec", "pyav", "torch"):
         assert all(f"-{policy['comparison']['python_tag']}-" in w["filename"] for w in snapshot[project]["wheels"])
     readme = (root / "README.md").read_text()
     table = comparison.comparison_table(snapshot)
     assert "PyAV" in table
+    assert "TorchCodec + PyTorch (CPU)" in table
     assert comparison.replace_block(readme, comparison.START, comparison.END, table) == readme
+
+
+def test_comparison_adds_pytorch_to_torchcodec():
+    snapshot = {}
+    for project, size in (("tensorcodec", 1), ("pyav", 2), ("torchcodec", 3), ("torch", 100)):
+        snapshot[project] = {
+            "wheels": [
+                {**artifact(target), "download_bytes": size * 1_000_000, "unpacked_bytes": size * 2_000_000}
+                for target in comparison.TARGETS
+            ]
+        }
+    assert "| TorchCodec + PyTorch (CPU) | 103.0 / 206.0 | 103.0 / 206.0 |" in comparison.comparison_table(snapshot)

@@ -1,4 +1,4 @@
-"""Refresh the README from hash-verified, published PyPI wheels (standard library only)."""
+"""Refresh the README from hash-verified published wheels (standard library only)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import json
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -51,16 +52,27 @@ def select_wheels(metadata: dict, python_tag: str) -> list[dict]:
     return selected
 
 
-def measure_release(project: str, version: str, python_tag: str) -> dict:
-    metadata = release_metadata(project, version)
-    result = {"version": version, "source": f"https://pypi.org/project/{project}/{version}/", "wheels": []}
+def measure_release(project: str, version: str, python_tag: str, urls: list[str] | None = None) -> dict:
+    metadata = {"urls": []} if urls else release_metadata(project, version)
+    for url in urls or []:
+        location, fragment = urllib.parse.urldefrag(url)
+        metadata["urls"].append(
+            {
+                "filename": urllib.parse.unquote(urllib.parse.urlparse(location).path.rsplit("/", 1)[1]),
+                "url": location,
+                "packagetype": "bdist_wheel",
+                "digests": {"sha256": urllib.parse.parse_qs(fragment)["sha256"][0]},
+            }
+        )
+    source = urls[0].rsplit("/", 1)[0] + "/" if urls else f"https://pypi.org/project/{project}/{version}/"
+    result = {"version": version, "source": source, "wheels": []}
     with tempfile.TemporaryDirectory() as directory:
         for item in select_wheels(metadata, python_tag):
             path = Path(directory) / item["filename"]
             urllib.request.urlretrieve(item["url"], path)
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
-            if digest != item["digests"]["sha256"] or path.stat().st_size != item["size"]:
-                raise ValueError(f"PyPI hash/size mismatch: {item['filename']}")
+            if digest != item["digests"]["sha256"] or ("size" in item and path.stat().st_size != item["size"]):
+                raise ValueError(f"Wheel hash/size mismatch: {item['filename']}")
             result["wheels"].append({**measure_wheel(path), "sha256": digest, "url": item["url"]})
     return result
 
@@ -75,20 +87,23 @@ def replace_block(text: str, start: str, end: str, content: str) -> str:
 
 def comparison_table(snapshot: dict) -> str:
     lines = [
-        (
-            f"Published PyPI Linux wheels, CPython 3.12 (TensorCodec uses ABI3): TensorCodec {snapshot['tensorcodec']['version']} / "
-            f"TorchCodec {snapshot['torchcodec']['version']} / PyAV {snapshot['pyav']['version']}."
-        ),
+        "Linux CPU wheels, Python 3.12. Download / unpacked size in MB.",
         "",
-        "| Package | Architecture | Download | Unpacked |",
-        "| --- | --- | ---: | ---: |",
+        "| Package | x86_64 | ARM64 |",
+        "| --- | ---: | ---: |",
     ]
-    for project, label in (("tensorcodec", "TensorCodec"), ("torchcodec", "TorchCodec"), ("pyav", "PyAV")):
-        for wheel in snapshot[project]["wheels"]:
-            lines.append(
-                f"| {label} | {architecture(wheel['filename'])} | "
-                f"{wheel['download_bytes'] / 1e6:.1f} MB | {wheel['unpacked_bytes'] / 1e6:.1f} MB |"
-            )
+    for projects, label in (
+        (("tensorcodec",), "TensorCodec"),
+        (("pyav",), "PyAV"),
+        (("torchcodec", "torch"), "TorchCodec + PyTorch (CPU)"),
+    ):
+        cells = []
+        for target in TARGETS:
+            wheels = [w for p in projects for w in snapshot[p]["wheels"] if architecture(w["filename"]) == target]
+            download = sum(w["download_bytes"] for w in wheels) / 1e6
+            unpacked = sum(w["unpacked_bytes"] for w in wheels) / 1e6
+            cells.append(f"{download:.1f} / {unpacked:.1f}")
+        lines.append(f"| {label} | {' | '.join(cells)} |")
     return "\n".join(lines)
 
 
@@ -106,6 +121,7 @@ def main() -> None:
         "tensorcodec": measure_release("tensorcodec", args.version, "cp310"),
         "torchcodec": measure_release(reference["project"], reference["version"], reference["python_tag"]),
         "pyav": measure_release(pyav["project"], pyav["version"], pyav["python_tag"]),
+        "torch": measure_release(**policy["torch"]),
     }
     failures = [message for wheel in snapshot["tensorcodec"]["wheels"] for message in check_sizes(wheel, policy)]
     if failures:

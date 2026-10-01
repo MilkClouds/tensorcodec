@@ -98,46 +98,18 @@ automatically, and metadata dimensions match the output.
 
 ## Package size
 
-The runtime dependencies for CPU video/audio decoding are:
-
-| Runtime footprint | TensorCodec | TorchCodec 0.17.0 | PyAV 19.0.0 |
-| --- | --- | --- | --- |
-| Python packages | TensorCodec + NumPy | TorchCodec + PyTorch and its dependencies | PyAV; NumPy for array conversion |
-| FFmpeg shared libraries | Bundled in the wheel | Separate installation | Bundled in the wheel |
-| Decoder output | NumPy arrays | PyTorch tensors | AVFrame objects; NumPy conversion |
-
-On Linux x86_64, TensorCodec's wheel is **10.7 MB download / 25.9 MB unpacked**,
-compared with PyAV's **35.0 MB / 131.6 MB**. Both include FFmpeg; PyAV also exposes
-encoding, muxing and other FFmpeg operations outside TensorCodec's decoding API.
-
-TensorCodec's wheel size includes its FFmpeg runtime. TorchCodec's excludes
-PyTorch and FFmpeg, so the standalone wheel sizes below are not complete
-installation sizes. Existing dependencies can be reused by either package.
-
-<details>
-<summary>Published wheel sizes and measurement details</summary>
-
 <!-- wheel-size:start -->
-Published PyPI Linux wheels, CPython 3.12 (TensorCodec uses ABI3): TensorCodec 0.1.1 / TorchCodec 0.17.0 / PyAV 19.0.0.
+Linux CPU wheels, Python 3.12. Download / unpacked size in MB.
 
-| Package | Architecture | Download | Unpacked |
-| --- | --- | ---: | ---: |
-| TensorCodec | x86_64 | 10.7 MB | 25.9 MB |
-| TensorCodec | aarch64 | 10.9 MB | 24.0 MB |
-| TorchCodec | x86_64 | 10.0 MB | 23.4 MB |
-| TorchCodec | aarch64 | 8.9 MB | 21.9 MB |
-| PyAV | x86_64 | 35.0 MB | 131.6 MB |
-| PyAV | aarch64 | 32.7 MB | 94.8 MB |
+| Package | x86_64 | ARM64 |
+| --- | ---: | ---: |
+| TensorCodec | 10.7 / 25.9 | 10.9 / 24.0 |
+| PyAV | 35.0 / 131.6 | 32.7 / 94.8 |
+| TorchCodec + PyTorch (CPU) | 206.2 / 738.9 | 168.1 / 614.1 |
 <!-- wheel-size:end -->
 
-MB = 1,000,000 bytes. Download is the wheel archive; unpacked is the sum of its
-entries. Both exclude external dependencies. The badge shows the largest
-published TensorCodec Linux wheel. These are PyPI builds; PyTorch's CPU/CUDA
-indexes can provide different artifacts.
-
-[Measurement and release policy](docs/package_size.md) · [Use an existing FFmpeg installation](docs/system_ffmpeg.md)
-
-</details>
+TensorCodec and PyAV bundle FFmpeg; TorchCodec needs it separately.
+Other dependencies are excluded. [Measurements](docs/package_size.md).
 
 ## Scope and compatibility
 

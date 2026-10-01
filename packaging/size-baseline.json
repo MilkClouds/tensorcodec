@@ -58,5 +58,25 @@
         "url": "https://files.pythonhosted.org/packages/39/24/25b5e1edd5075591b0b13b4d84b76f0d86c654f1e5d62d5e7083d2e59db4/av-19.0.0-cp312-abi3-manylinux_2_28_aarch64.whl"
       }
     ]
+  },
+  "torch": {
+    "version": "2.14.1+cpu",
+    "source": "https://download.pytorch.org/whl/cpu/",
+    "wheels": [
+      {
+        "filename": "torch-2.14.1+cpu-cp312-cp312-manylinux_2_28_x86_64.whl",
+        "download_bytes": 196253677,
+        "unpacked_bytes": 715496736,
+        "sha256": "5a6363570c753812540a05eb82380e329469cbe668643e88111414c12627711f",
+        "url": "https://download.pytorch.org/whl/cpu/torch-2.14.1%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl"
+      },
+      {
+        "filename": "torch-2.14.1+cpu-cp312-cp312-manylinux_2_28_aarch64.whl",
+        "download_bytes": 159242183,
+        "unpacked_bytes": 592215502,
+        "sha256": "2af649994b36dffc627175c3f306d9e513a309b58d4619ac7107577613336454",
+        "url": "https://download.pytorch.org/whl/cpu/torch-2.14.1%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl"
+      }
+    ]
   }
 }
