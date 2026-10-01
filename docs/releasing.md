@@ -36,6 +36,8 @@ missing, tests fail, or the version has already been uploaded.
 gh workflow run publish.yml --repo MilkClouds/tensorcodec --ref main
 ```
 
+For a build and full validation without uploading, pass `--field publish=false`.
+
 Check the workflow and https://pypi.org/project/tensorcodec/0.1.0/ before reporting
 success. Verify a fresh `pip install tensorcodec==0.1.0` and a decode without
 Torch/PyAV. Update the version before subsequent releases; PyPI versions cannot

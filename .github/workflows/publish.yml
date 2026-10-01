@@ -1,6 +1,11 @@
 name: Publish to PyPI
 on:
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Upload validated distributions to PyPI
+        type: boolean
+        default: true
 permissions:
   contents: read
 concurrency:
@@ -53,6 +58,7 @@ jobs:
           if-no-files-found: error
   publish:
     needs: build
+    if: inputs.publish
     runs-on: ubuntu-24.04
     environment:
       name: pypi
