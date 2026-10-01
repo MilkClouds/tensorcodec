@@ -30,10 +30,13 @@ jobs:
           manylinux: '2_28'
           command: build
           args: --release --locked --auditwheel repair --out dist
-          before-script: |
+          before-script-linux: |
             dnf install -y clang-devel nasm perl
+            export PKG_CONFIG_PATH=/opt/tensorcodec/openssl/lib/pkgconfig
+            export LD_LIBRARY_PATH=/opt/tensorcodec/openssl/lib:/opt/tensorcodec/ffmpeg/lib
             bash scripts/build_openssl.sh /opt/tensorcodec/openssl
             bash scripts/build_ffmpeg.sh /opt/tensorcodec/ffmpeg
+            export FFMPEG_DIR=/opt/tensorcodec/ffmpeg
       - name: Build source distribution
         run: |
           python -m pip install 'maturin>=1.8,<2'
