@@ -9,9 +9,7 @@ from tests.conftest import as_numpy, index_input, time_input
 def compare_batch(actual, expected):
     assert actual.data.shape == expected.data.shape
     np.testing.assert_allclose(actual.pts_seconds, as_numpy(expected.pts_seconds), atol=1e-12, rtol=0)
-    np.testing.assert_allclose(
-        actual.duration_seconds, as_numpy(expected.duration_seconds), atol=1e-12, rtol=0
-    )
+    np.testing.assert_allclose(actual.duration_seconds, as_numpy(expected.duration_seconds), atol=1e-12, rtol=0)
     # Identical FFmpeg conversion settings should match; allow one rounding unit, not 20.
     np.testing.assert_allclose(actual.data, as_numpy(expected.data), atol=1, rtol=0)
 
@@ -40,9 +38,7 @@ def test_video_differential(backend, oracle, video):
     for indices in [[11, 0, 5, 5, 2], [], list(range(12))]:
         compare_batch(actual.get_frames_at(indices), expected.get_frames_at(index_input(oracle, indices)))
     times = ((video.pts[:-1] + video.pts[1:]) / 2).tolist()[::-1]
-    compare_batch(
-        actual.get_frames_played_at(times), expected.get_frames_played_at(time_input(oracle, times))
-    )
+    compare_batch(actual.get_frames_played_at(times), expected.get_frames_played_at(time_input(oracle, times)))
     compare_batch(
         actual.get_frames_played_in_range(float(video.pts[1]), float(video.pts[8])),
         expected.get_frames_played_in_range(float(video.pts[1]), float(video.pts[8])),
@@ -73,9 +69,7 @@ def test_color_conversion_differential(backend, oracle, color_video, dtype):
     # Exact pixel conversion when both backends link the same FFmpeg version.
     for indices in ([11, 3, 3, 0], [4, 1, 9], [0, 11]):
         left, right = actual.get_frames_at(indices), expected.get_frames_at(indices)
-        np.testing.assert_allclose(
-            left.data, as_numpy(right.data), atol=1 if dtype == "uint8" else 1 / 65535, rtol=0
-        )
+        np.testing.assert_allclose(left.data, as_numpy(right.data), atol=1 if dtype == "uint8" else 1 / 65535, rtol=0)
         np.testing.assert_allclose(left.pts_seconds, as_numpy(right.pts_seconds), atol=1e-12, rtol=0)
     for field in ("color_space", "color_primaries", "color_transfer_characteristic", "pixel_format"):
         assert getattr(actual.metadata, field) == getattr(expected.metadata, field)

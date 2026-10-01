@@ -241,9 +241,7 @@ class VideoDecoder(_Decoder):
             )
             if self._order == "NCHW":
                 data = data.transpose(0, 3, 1, 2)
-            return FrameBatch(
-                data, np.asarray(pts, dtype=np.float64), np.asarray(durations, dtype=np.float64)
-            )
+            return FrameBatch(data, np.asarray(pts, dtype=np.float64), np.asarray(durations, dtype=np.float64))
 
     def get_frame_at(self, index):
         batch = self.get_frames_at([index])
@@ -275,9 +273,7 @@ class VideoDecoder(_Decoder):
             raise RuntimeError("timestamp is outside the stream")
         if self._mappings is not None:
             return np.searchsorted(self._pts, values, side="right") - 1
-        return np.floor((values - self.metadata.begin_stream_seconds) * self.metadata.average_fps).astype(
-            np.int64
-        )
+        return np.floor((values - self.metadata.begin_stream_seconds) * self.metadata.average_fps).astype(np.int64)
 
     def get_frames_played_at(self, seconds):
         with self._lock:
@@ -312,12 +308,8 @@ class VideoDecoder(_Decoder):
                 start = int(np.searchsorted(self._pts, start_seconds, side="right") - 1)
                 stop = int(np.searchsorted(self._pts, stop_seconds, side="left"))
             else:
-                start = math.floor(
-                    (start_seconds - self.metadata.begin_stream_seconds) * self.metadata.average_fps
-                )
-                stop = math.ceil(
-                    (stop_seconds - self.metadata.begin_stream_seconds) * self.metadata.average_fps
-                )
+                start = math.floor((start_seconds - self.metadata.begin_stream_seconds) * self.metadata.average_fps)
+                stop = math.ceil((stop_seconds - self.metadata.begin_stream_seconds) * self.metadata.average_fps)
             return self.get_frames_in_range(start, stop)
 
     def get_all_frames(self, fps=None):
@@ -365,8 +357,7 @@ class AudioDecoder(_Decoder):
         with self._lock:
             self._check_open()
             if not math.isfinite(start_seconds) or (
-                stop_seconds is not None
-                and (not math.isfinite(stop_seconds) or not start_seconds <= stop_seconds)
+                stop_seconds is not None and (not math.isfinite(stop_seconds) or not start_seconds <= stop_seconds)
             ):
                 raise ValueError("invalid audio time range")
             data, first_pts = self._native.decode_audio(self._rate, self._channels, stop_seconds)

@@ -115,9 +115,7 @@ def test_encoded_sources(backend, videos, kind):
     assert_batch(backend.VideoDecoder(source).get_frames_at([11, 0, 4]), case, [11, 0, 4])
 
 
-@pytest.mark.parametrize(
-    "kwargs", [{"dimension_order": "CHWN"}, {"seek_mode": "wrong"}, {"num_ffmpeg_threads": None}]
-)
+@pytest.mark.parametrize("kwargs", [{"dimension_order": "CHWN"}, {"seek_mode": "wrong"}, {"num_ffmpeg_threads": None}])
 def test_invalid_constructor_arguments(backend, videos, kwargs):
     with pytest.raises(ValueError):
         backend.VideoDecoder(videos["cfr"].path, **kwargs)
