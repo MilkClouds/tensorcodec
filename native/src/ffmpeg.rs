@@ -26,7 +26,7 @@ fn check(code: i32, operation: &str) -> Result<()> {
     if code >= 0 {
         return Ok(());
     }
-    let mut text = [0i8; 256];
+    let mut text: [std::ffi::c_char; 256] = [0; 256];
     unsafe {
         av::av_strerror(code, text.as_mut_ptr(), text.len());
     }
