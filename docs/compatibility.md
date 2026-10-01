@@ -14,12 +14,12 @@ FFmpeg; arrays are returned as NumPy instead of torch.Tensor.
   Also `get_all_frames`, FPS resampling and custom JSON frame mappings.
 - `tensorcodec.decoders.AudioDecoder`: constructor, metadata, stream_index,
   `get_all_samples`, `get_samples_played_in_range`, resampling and channel mixing.
-- NumPy uint8 or float32 video and float32 audio; float64 batch timestamps/durations.
+- NumPy uint8, uint16 or float32 video and float32 audio; float64 batch timestamps/durations.
   Float32 RGB uses 16-bit color conversion rather than scaling uint8 output.
 - NCHW/NHWC, paths/URLs, encoded bytes, uint8 arrays and seekable file-like input.
 - Exact and approximate video seeking; exact is the default.
 
-CUDA, torch inputs, torchvision transforms, HDR tone mapping, rotated video,
+CUDA, torch inputs, torchvision transforms, HDR tone mapping, arbitrary-angle rotation,
 encoders and samplers are outside the
 initial CPU decoding contract. Unsupported device/transform options fail explicitly.
 Do not advertise full-package or torch.Tensor type compatibility.
@@ -55,3 +55,14 @@ when `--compare` is requested. Production installation does not require torch.
 Intentional fix: TensorCodec accepts empty index lists. TorchCodec 0.17.0 infers
 float for empty index lists; oracle tests use explicitly typed input tensors to
 isolate playback semantics from that conversion bug.
+
+## Video fidelity extensions
+
+PQ/HLG inputs decode as transfer-encoded RGB without tone mapping. `auto` uses
+float32 for source component depths above 8 bits, including high-depth SDR.
+Explicit uint16 returns full-range RGB48 and is a TensorCodec extension; it is
+not native YUV output. Source `bit_depth` and `color_range` metadata are also
+TensorCodec extensions. Right-angle display rotations are applied automatically;
+metadata dimensions describe the rotated output. Reflected and non-right-angle
+display matrices remain unsupported. Color metadata and pixel aspect ratio
+describe the source; HDR output is not linear light or sRGB.
