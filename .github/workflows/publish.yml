@@ -29,7 +29,7 @@ jobs:
           target: x86_64
           manylinux: '2_28'
           command: build
-          args: --release --locked --auditwheel repair --compatibility manylinux_2_28 --out dist
+          args: --release --locked --auditwheel repair --out dist
           before-script: |
             dnf install -y clang-devel nasm perl
             bash scripts/build_openssl.sh /opt/tensorcodec/openssl
