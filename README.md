@@ -60,7 +60,7 @@ with VideoDecoder("video.mkv", seek_mode="timestamp") as decoder:
     frames = decoder.get_frames_played_at([10.0, 10.1, 10.2])
 ```
 
-Decoder transforms resize and crop inside the decoder, as TorchCodec's do:
+Decoder transforms (since v0.1.5) resize and crop inside the decoder, as TorchCodec's do:
 
 ```python
 from tensorcodec.transforms import CenterCrop, Resize
@@ -75,7 +75,7 @@ indices, `len(decoder)`, or `get_all_frames()`. See [the contract](docs/compatib
 
 ## Features
 
-TensorCodec 0.1.4 relative to TorchCodec 0.17.0.
+TensorCodec 0.1.5 relative to TorchCodec 0.17.0.
 ✓ supported · △ partial support · — not implemented.
 
 | Component | TensorCodec | TorchCodec 0.17.0 |
