@@ -23,7 +23,7 @@ Legend for both tables: ✓ supported · △ limited support · — unavailable.
 
 | Module family | Component | TorchCodec 0.17.0 | TensorCodec 0.1.1 |
 | --- | --- | :---: | --- |
-| Decoders | Video · `VideoDecoder` | ✓ | △ CPU, SDR |
+| Decoders | Video · `VideoDecoder` | ✓ | △ CPU, SDR/HDR RGB |
 | | Audio · `AudioDecoder` | ✓ | △ CPU |
 | | Images | ✓ | — |
 | Encoders | Video / audio / JPEG / PNG | ✓ | — |
@@ -43,8 +43,9 @@ FPS-based decoder queries are available; clip samplers are not implemented.
 | | FPS queries / custom frame mappings | ✓ | ✓ |
 | Video · formats | CFR / VFR / offset PTS / B-frames | ✓ | ✓ Tested |
 | | NCHW / NHWC RGB | ✓ | ✓ |
-| | uint8 / float32 | ✓ | △ SDR |
-| | HDR transfer / display rotation | ✓ | — Explicit rejection |
+| | uint8 / float32 | ✓ | ✓ SDR/HDR; `auto` preserves high-depth precision |
+| | uint16 RGB | — | ✓ Full-range RGB48 |
+| | HDR transfer / display rotation | ✓ | △ PQ/HLG signal preservation; right-angle rotations |
 | Audio | Ranges / resampling / channel mixing | ✓ | ✓ float32 |
 | Input / output | Paths / URLs / bytes / seekable files | ✓ | ✓ |
 | | Encoded array input | `torch.Tensor` | 1-D uint8 NumPy arrays |
@@ -106,6 +107,13 @@ with AudioDecoder("audio.wav", sample_rate=16000, num_channels=1) as audio:
 
 Decoded arrays keep their storage after the decoder closes. Input file objects
 remain caller-owned.
+
+Use `output_dtype="auto"` to preserve high-depth video as float32, or
+`output_dtype=np.uint16` for full-range 16-bit RGB. PQ/HLG output preserves the
+encoded signal; it is not tone mapped to SDR. Right-angle display rotation is
+applied automatically, and metadata dimensions match the output.
+See [video fidelity and priorities](docs/video_fidelity.md) for precise semantics
+and remaining work, including raw source planes and HDR display conversion.
 
 ## Implementation
 
