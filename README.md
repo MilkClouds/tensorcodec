@@ -25,7 +25,7 @@ CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
 - **Efficient batch decoding.** Rust/PyO3 bindings to FFmpeg process frame batches
   in a single native call, avoiding per-frame Python calls. Closing a decoder
   releases its FFmpeg resources without waiting for Python's cyclic GC.
-- **Lightweight installation.** Linux wheels are 10.3–10.5 MiB (v0.1.3), including
+- **Lightweight installation.** Linux wheels are 10.3–10.5 MiB (v0.1.4), including
   FFmpeg shared libraries. NumPy is the only Python dependency.
 
 ## Quick start
