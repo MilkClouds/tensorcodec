@@ -36,9 +36,9 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 
@@ -86,45 +86,25 @@ def _create_one_video(
     keyframe_interval: int = 10,
 ) -> None:
     """Create a synthetic video (640×480, libx264)."""
-    try:
-        cmd = [
-            "ffmpeg",
-            "-y",
-            "-f",
-            "lavfi",
-            "-i",
-            f"testsrc=duration={duration_sec}:size=640x480:rate={fps}",
-            "-c:v",
-            "libx264",
-            "-pix_fmt",
-            "yuv420p",
-            "-g",
-            str(keyframe_interval),
-            output_path,
-        ]
-        subprocess.run(cmd, capture_output=True, check=True)
-        return
-    except FileNotFoundError:
-        pass
-    # Fallback: PyAV
-    import av
-
-    num_frames = int(duration_sec * fps)
-    container = av.open(output_path, mode="w")
-    stream = container.add_stream("libx264", rate=fps)
-    stream.width, stream.height, stream.pix_fmt = 640, 480, "yuv420p"
-    stream.options = {"g": str(keyframe_interval)}
-    for i in range(num_frames):
-        data = np.zeros((480, 640, 3), dtype=np.uint8)
-        data[:, :, 0] = (i * 3) % 256
-        data[:, :, 1] = np.arange(640)[None, :] * 255 // 640
-        data[:, :, 2] = np.arange(480)[:, None] * 255 // 480
-        frame_obj = av.VideoFrame.from_ndarray(data, format="rgb24")
-        for pkt in stream.encode(frame_obj):
-            container.mux(pkt)
-    for pkt in stream.encode():
-        container.mux(pkt)
-    container.close()
+    cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        f"testsrc=duration={duration_sec}:size=640x480:rate={fps}",
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        "-g",
+        str(keyframe_interval),
+        output_path,
+    ]
+    subprocess.run(cmd, capture_output=True, check=True)
 
 
 def prepare_videos(vcfg: VideoCorpusConfig) -> list[str]:
@@ -351,8 +331,8 @@ def _run_with_fuse(
             finally:
                 try:
                     pyfuse3.close()
-                except Exception:
-                    pass
+                except (OSError, RuntimeError) as exc:
+                    print(f"FUSE cleanup failed: {exc}", file=sys.stderr)
             return result
 
         return trio.run(_run)
@@ -521,7 +501,7 @@ def main() -> None:
                     results.append(res_fuse)
                     overhead = (res_direct.fps - res_fuse.fps) / res_direct.fps * 100
                     print(_fmt_result_line(res_fuse) + f"  (overhead: {overhead:+.1f}%)")
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — benchmark other backends after one fails
                 print(f"  ERROR: {exc}")
     else:
         # --- Normal benchmark ---
@@ -536,7 +516,7 @@ def main() -> None:
                         res = scenario_fn(dec, video_paths, cfg)
                     results.append(res)
                     print(_fmt_result_line(res))
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — benchmark other backends after one fails
                 print(f"  ERROR: {exc}")
 
     print_results(results, args.output)

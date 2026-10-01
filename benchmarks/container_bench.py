@@ -5,8 +5,8 @@ measures random-seek performance for tensorcodec and (optionally) TorchCodec.
 
 Usage::
 
-    python benchmarks/container_bench.py
-    python benchmarks/container_bench.py --duration 60 --queries 200
+    uv run --no-sync python -m benchmarks.container_bench
+    uv run --no-sync python -m benchmarks.container_bench --duration 60 --queries 200
 """
 
 from __future__ import annotations
@@ -14,10 +14,10 @@ from __future__ import annotations
 import argparse
 import os
 import random
+import subprocess
 import tempfile
 import time
 
-import av
 import numpy as np
 
 # ---------------------------------------------------------------------------
@@ -51,23 +51,24 @@ def _create_video(
     fps: int = 30,
     opts: dict | None = None,
 ) -> None:
-    container = av.open(path, mode="w")
-    stream = container.add_stream(codec, rate=fps)
-    stream.width, stream.height = 640, 480
-    stream.pix_fmt = pix_fmt
-    if opts:
-        stream.options = opts
-    for i in range(duration_sec * fps):
-        data = np.zeros((480, 640, 3), dtype=np.uint8)
-        data[:, :, 0] = (i * 3) % 256
-        data[:, :, 1] = np.arange(640)[None, :] * 255 // 640
-        data[:, :, 2] = np.arange(480)[:, None] * 255 // 480
-        frame = av.VideoFrame.from_ndarray(data, format="rgb24")
-        for pkt in stream.encode(frame):
-            container.mux(pkt)
-    for pkt in stream.encode():
-        container.mux(pkt)
-    container.close()
+    cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        f"testsrc2=size=640x480:rate={fps}:duration={duration_sec}",
+        "-c:v",
+        codec,
+        "-pix_fmt",
+        pix_fmt,
+    ]
+    for key, value in (opts or {}).items():
+        cmd.extend([f"-{key}", str(value)])
+    subprocess.run([*cmd, path], capture_output=True, check=True)
 
 
 # ---------------------------------------------------------------------------
@@ -81,7 +82,7 @@ def _bench_tensorcodec(path: str, windows: list[list[float]]) -> str:
     try:
         with VideoDecoder(path) as d:
             d.get_frames_played_at([1.0])
-    except Exception:
+    except (RuntimeError, ValueError, OSError):
         return "FAIL"
     t0 = time.perf_counter()
     total = 0
@@ -98,7 +99,7 @@ def _bench_torchcodec(path: str, windows: list[list[float]], seek_mode: str) -> 
         return "N/A"
     try:
         VideoDecoder(path, seek_mode=seek_mode, num_ffmpeg_threads=1).get_frames_played_at([1.0])
-    except Exception:
+    except (RuntimeError, ValueError, OSError):
         return "FAIL"
     t0 = time.perf_counter()
     total = 0
@@ -127,7 +128,9 @@ def main() -> None:
     windows = [[t + o for o in np.arange(-1.0, 0.05, 0.1).tolist()] for t in ts]
 
     with tempfile.TemporaryDirectory(prefix="container_bench_") as tmp:
-        hdr = f"{'codec.container':20s} {'tensorcodec':>10s} {'TC(apx)':>10s} {'TC(ext)':>10s}  {'apx/tensorcodec':>10s}"
+        hdr = (
+            f"{'codec.container':20s} {'tensorcodec':>10s} {'TC(apx)':>10s} {'TC(ext)':>10s}  {'apx/tensorcodec':>10s}"
+        )
         print(hdr)
         print("-" * len(hdr))
 
@@ -135,7 +138,7 @@ def main() -> None:
             path = os.path.join(tmp, f"{codec_label}.{ext}")
             try:
                 _create_video(path, av_codec, pix, args.duration, opts=opts)
-            except Exception as e:
+            except (OSError, subprocess.CalledProcessError) as e:
                 print(f"{codec_label}.{ext:20s} CREATE FAILED: {e}")
                 continue
 

@@ -1,1 +1,1 @@
-"""Tests for avdec package."""
+"""Tests for TensorCodec package."""

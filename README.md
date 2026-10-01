@@ -76,7 +76,6 @@ Details and the tested scope: [compatibility contract](docs/compatibility.md).
 - Audio range queries currently decode from the beginning; late ranges can be
   expensive.
 - NumPy return types require caller changes where code expects Torch tensors.
-- Historical avdec benchmarks are not TensorCodec performance results.
 
 ## Install
 
@@ -133,8 +132,9 @@ uv run --group oracle maturin develop --locked --uv
 
 Tests generate fixtures with FFmpeg/ffprobe and Python's `wave` module.
 `--compare` requires the exact oracle version; otherwise differential tests skip.
-The old avdec decoder and tests are never executed.
 
+- [Benchmark guide](benchmarks/README.md)
+- [Container and seek behavior](docs/container_robustness.md)
 - [Playback rules](docs/playback_semantics.md)
 - [Release builds and PyPI publishing](docs/releasing.md)
 - [Native dependency licenses and source/build notices](licenses/README.md)

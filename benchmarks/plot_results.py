@@ -1,12 +1,11 @@
-#!/usr/bin/env python3
 """Plot benchmark results from JSON files into PNG charts.
 
 Usage::
 
-    python -m benchmarks.plot_results                          # defaults
-    python -m benchmarks.plot_results --speed results/readme_speed.json
-    python -m benchmarks.plot_results --io results/readme_io.json
-    python -m benchmarks.plot_results --outdir ./plots
+    uv run --no-sync python -m benchmarks.plot_results                          # defaults
+    uv run --no-sync python -m benchmarks.plot_results --speed benchmarks/results/speed.json
+    uv run --no-sync python -m benchmarks.plot_results --io benchmarks/results/io.json
+    uv run --no-sync python -m benchmarks.plot_results --outdir ./plots
 """
 
 from __future__ import annotations
@@ -31,7 +30,6 @@ def _load(path: Path) -> list[dict]:
 # ── Chart: README figure ────────────────────────────────────────────────────
 # Name mapping for the speed panel — one entry per library (best config)
 _SPEED_NAMES = {
-    "avdec": "avdec",  # historical data keeps its original name
     "tensorcodec": "tensorcodec",
     "torchcodec(seek=approximate,thr=1)": "torchcodec (approx)",
     "torchcodec(seek=exact,thr=1)": "torchcodec (exact)",
@@ -42,7 +40,6 @@ _SPEED_NAMES = {
 
 # Name mapping for the I/O panel — includes both torchcodec configs
 _IO_NAMES = {
-    "avdec": "avdec",  # historical data keeps its original name
     "tensorcodec": "tensorcodec",
     "torchcodec(seek=approximate,thr=1)": "torchcodec (approx)",
     "torchcodec(seek=exact,thr=1)": "torchcodec (exact)",
@@ -51,9 +48,9 @@ _IO_NAMES = {
     "torchvision-pyav": "torchvision",
 }
 
-# Order: avdec first (hero), then others; exact-seek variant last in I/O
-_SPEED_ORDER = ["tensorcodec", "avdec", "torchcodec (approx)", "torchcodec (exact)", "decord", "opencv", "torchvision"]
-_IO_ORDER = ["tensorcodec", "avdec", "torchcodec (approx)", "torchcodec (exact)"]
+# Order: TensorCodec first, then comparison backends.
+_SPEED_ORDER = ["tensorcodec", "torchcodec (approx)", "torchcodec (exact)", "decord", "opencv", "torchvision"]
+_IO_ORDER = ["tensorcodec", "torchcodec (approx)", "torchcodec (exact)"]
 
 
 def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Path:
@@ -89,7 +86,7 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
 
     HERO = "#2563eb"
     OTHER = "#cbd5e1"
-    WARN = "#f59e0b"  # amber for the "wrong config" bar
+    WARN = "#f59e0b"  # highlight exact-seek I/O
 
     n_fps = len(fps_labels)
     n_io = len(io_labels)
@@ -103,7 +100,7 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
 
     # ── Panel 1: FPS ──
     y1 = list(range(n_fps))
-    c1 = [HERO if lb in {"avdec", "tensorcodec"} else OTHER for lb in fps_labels]
+    c1 = [HERO if lb == "tensorcodec" else OTHER for lb in fps_labels]
     bars = ax1.barh(y1, fps_vals, color=c1, edgecolor="white", height=0.6)
     for bar, fps, lb in zip(bars, fps_vals, fps_labels):
         ax1.text(
@@ -113,7 +110,7 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
             va="center",
             ha="left",
             fontsize=11,
-            fontweight="bold" if lb in {"avdec", "tensorcodec"} else "normal",
+            fontweight="bold" if lb == "tensorcodec" else "normal",
         )
     ax1.set_yticks(y1)
     ax1.set_yticklabels(fps_labels, fontsize=12)
@@ -129,7 +126,7 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
     y2 = list(range(n_io))
     c2 = []
     for lb in io_labels:
-        if lb in {"avdec", "tensorcodec"}:
+        if lb == "tensorcodec":
             c2.append(HERO)
         elif "exact" in lb:
             c2.append(WARN)
@@ -150,7 +147,7 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
             va="center",
             ha="left",
             fontsize=11,
-            fontweight="bold" if lb in {"avdec", "tensorcodec"} else "normal",
+            fontweight="bold" if lb == "tensorcodec" else "normal",
         )
     ax2.set_yticks(y2)
     ax2.set_yticklabels(io_labels, fontsize=12)
@@ -174,10 +171,8 @@ def plot_readme(speed_data: list[dict], io_data: list[dict], outdir: Path) -> Pa
 # ── CLI ──────────────────────────────────────────────────────────────────────
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plot benchmark results to PNG")
-    parser.add_argument(
-        "--speed", type=Path, default=DEFAULT_DIR / "readme_speed.json", help="Path to speed benchmark JSON"
-    )
-    parser.add_argument("--io", type=Path, default=DEFAULT_DIR / "readme_io.json", help="Path to I/O benchmark JSON")
+    parser.add_argument("--speed", type=Path, default=DEFAULT_DIR / "speed.json", help="Path to speed benchmark JSON")
+    parser.add_argument("--io", type=Path, default=DEFAULT_DIR / "io.json", help="Path to I/O benchmark JSON")
     parser.add_argument("--outdir", type=Path, default=DEFAULT_DIR, help="Output directory for PNGs")
     args = parser.parse_args()
 

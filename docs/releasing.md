@@ -6,24 +6,21 @@ NumPy must also provide a compatible wheel for the selected Python/glibc pair.
 The wheel bundles shared FFmpeg 7.1.5 and OpenSSL 3.5.9 LTS; its only Python
 runtime dependency is NumPy. macOS/Windows wheels are not yet provided.
 
-## One-time account setup
+## Trusted publisher configuration
 
-1. Rename `MilkClouds/avdec` to `tensorcodec` in GitHub repository Settings.
-   Preserve the current visibility; publishing does not require making it public.
-2. Open https://pypi.org/manage/account/publishing/ and add a **pending GitHub
-   publisher** for a new project with these values:
+The PyPI project is already registered. Its GitHub Trusted Publisher uses:
 
-   | Field | Value |
-   | --- | --- |
-   | PyPI project name | `tensorcodec` |
-   | GitHub owner | `MilkClouds` |
-   | Repository | `tensorcodec` |
-   | Workflow filename | `publish.yml` |
-   | Environment | `pypi` |
+| Field | Value |
+| --- | --- |
+| PyPI project name | `tensorcodec` |
+| GitHub owner | `MilkClouds` |
+| Repository | `tensorcodec` |
+| Workflow filename | `publish.yml` |
+| Environment | `pypi` |
 
-A pending publisher creates the project on its first successful upload. If the
-project already exists, register the publisher in that project's Publishing
-settings instead. Do not put an API token in the repository or chat.
+Manage this configuration in the project's PyPI Publishing settings when moving
+or renaming the repository or workflow. Publishing uses GitHub OIDC; no API token
+is needed. Repository visibility does not need to change for a release.
 
 ## Release
 

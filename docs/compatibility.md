@@ -39,13 +39,12 @@ exception classes follow the reference, including its restrictions on slice step
 
 Fixtures are generated with FFmpeg from known grayscale frame identities and
 explicit timestamp schedules, and with Python's wave module from known PCM.
-ffprobe validates encoded packet metadata independently. The original avdec
-decoder and tests are not executed. Run the same contract tests against the
-reference before adding implementation:
+ffprobe validates encoded packet metadata independently. Run the same contract
+tests against the reference before adding implementation:
 
 ```sh
-pytest tests/test_video_contract.py tests/test_audio_contract.py --backend torchcodec
-pytest --compare
+uv run --group oracle pytest tests/test_video_contract.py tests/test_audio_contract.py --backend torchcodec
+uv run --group oracle pytest --compare
 ```
 
 Comparisons check timing separately from pixels. One uint8 RGB unit or 1/65535

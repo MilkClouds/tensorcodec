@@ -2,7 +2,7 @@
 
 The supported behavior is specified in [compatibility.md](compatibility.md) and
 executable tests in `tests/test_video_contract.py` and `tests/test_audio_contract.py`.
-The reference is TorchCodec 0.17.0. These replace the previous avdec/PyAV design.
+The reference is TorchCodec 0.17.0.
 
 Exact video seeking scans presentation timestamps and preceding key-frame PTS.
 Index requests use that map; time requests select the frame playing at the requested

@@ -1,4 +1,4 @@
-"""Independent media fixtures; PyAV and the old avdec implementation are never used."""
+"""Independent media fixtures generated with FFmpeg and Python wave."""
 
 from __future__ import annotations
 
