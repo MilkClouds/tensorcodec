@@ -157,6 +157,8 @@ Source builds require Rust, Clang/libclang, pkg-config and FFmpeg 7 development
 headers/libraries. Python handles API and playback selection; Rust + PyO3 handles
 FFmpeg. Native decoding releases the GIL, allowing separate decoder instances to
 run concurrently across Python threads. Calls on the same instance are serialized.
+The default is one FFmpeg thread per decoder; use independent workers for concurrent
+windows and tune the total thread count to avoid oversubscription.
 
 ```sh
 uv sync --group dev --group oracle

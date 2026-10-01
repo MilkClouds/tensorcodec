@@ -51,6 +51,26 @@ it does not assert pixel or timestamp correctness. See
 
 ## Optional I/O and plotting
 
+To separate opening from an 11-frame playback window, counting bytes returned by
+file reads (including rereads, **not** physical disk or network traffic):
+
+```sh
+ffprobe -v error -select_streams v:0 -show_frames \
+  -show_entries frame=pts,duration,key_frame -of json video.mp4 > frames.json
+uv run --no-sync python -m benchmarks.open_cost video.mp4 --start 10 \
+  --backends tensorcodec torchcodec --mappings frames.json
+```
+
+Both libraries scan packets to EOF on each fresh default `exact` open. Precomputed
+`custom_frame_mappings` skip that scan while preserving exact selection; header
+probing and window reads remain. Generate mappings once for the **same encoded
+stream**, outside training. PTS alone is insufficient: durations and keyframe flags
+are also required, in the stream's integer time base. The tool checks mapped
+window pixels/PTS/durations against exact, and rotates mode order between trials;
+it does not control OS caches. `approximate` is measured separately without an
+accuracy guarantee. Container seek indexes are not generally complete frame maps
+(e.g. MKV Cues); they cannot universally replace an exact scan.
+
 FUSE measurements require Linux FUSE access, `pyfuse3` and `trio`. Install these
 only in the benchmark environment, then omit `--no-io`. The runner can fall back
 to speed-only results when FUSE is unavailable; check that `io_bytes` is populated
