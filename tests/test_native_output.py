@@ -257,3 +257,40 @@ def test_native_lossless_compressed_depth(tmp_path, fmt):
     with VideoDecoder(path, output_format="native") as decoder:
         for indices in ([7, 0, 4, 7], [3, 1, 0, 3]):
             np.testing.assert_array_equal(decoder.get_frames_at(indices).data[:, 0], expected[indices])
+
+
+def test_native_hevc_12bit_depth(tmp_path):
+    expected = (np.arange(16 * 48 * 64).reshape(16, 48, 64) * 127 % 4096).astype("<u2")
+    expected[:, 0, :4] = [0, 1, 4094, 4095]
+    raw, path = tmp_path / "depth.raw", tmp_path / "depth.mp4"
+    raw.write_bytes(expected.tobytes())
+    run_ffmpeg(
+        "-f",
+        "rawvideo",
+        "-pixel_format",
+        "gray12le",
+        "-video_size",
+        "64x48",
+        "-framerate",
+        10,
+        "-i",
+        raw,
+        "-c:v",
+        "libx265",
+        "-pix_fmt",
+        "gray12le",
+        "-x265-params",
+        "lossless=1:pools=none:frame-threads=1:wpp=0:log-level=error:keyint=8:bframes=3:b-adapt=0",
+        path,
+    )
+    stream = probe_stream(path)
+    assert stream["pix_fmt"] == "gray12le"
+    assert stream["has_b_frames"] > 0
+    with VideoDecoder(path, output_format="native", expected_pixel_format="gray12le") as decoder:
+        assert decoder.metadata.pixel_format == "gray12le"
+        for indices in ([15, 0, 8, 15], [3, 1, 0, 3]):
+            batch = decoder.get_frames_at(indices)
+            assert batch.pixel_format == "gray12le" and batch.data.dtype == np.uint16
+            np.testing.assert_array_equal(batch.data[:, 0], expected[indices])
+            np.testing.assert_allclose(batch.pts_seconds, np.array(indices) / 10, atol=1e-12)
+        np.testing.assert_array_equal(decoder.get_all_frames().data[:, 0], expected)
