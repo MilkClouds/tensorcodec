@@ -4,7 +4,8 @@ Release version: `0.1.2`. Distribution and import name: `tensorcodec`.
 Binary wheels target Linux x86_64 and ARM64 (aarch64), glibc 2.17+, CPython 3.10+.
 NumPy must also provide a compatible wheel for the selected Python/glibc pair.
 The wheel bundles shared FFmpeg 7.1.5 and OpenSSL 3.5.9 LTS; its only Python
-runtime dependency is NumPy. macOS/Windows wheels are not yet provided.
+runtime dependency is NumPy. The source branch also builds macOS 14+ ARM64/x86_64 wheels with the same minimal
+runtime; these first ship after 0.1.2. Windows wheels are not provided.
 
 ## Trusted publisher configuration
 

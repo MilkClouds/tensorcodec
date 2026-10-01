@@ -54,7 +54,8 @@ Arrays keep their storage after the decoder closes. Paths, URLs, encoded bytes,
 
 ## Features
 
-TensorCodec 0.1.2 relative to TorchCodec 0.17.0.
+Current source relative to TorchCodec 0.17.0. Native output and macOS wheels
+are not in the published 0.1.2 release.
 ✓ supported · △ partial support · — not implemented.
 
 | Component | TensorCodec | TorchCodec 0.17.0 |
@@ -81,6 +82,7 @@ FPS-based frame queries are supported; clip samplers are a separate API.
 | NCHW / NHWC RGB output | ✓ | ✓ |
 | uint8 / float32 / automatic dtype | ✓ SDR and high-bit-depth video | ✓ |
 | uint16 RGB output | ✓ Full-range RGB48 | — |
+| Native grayscale/depth and packed RGB(A) | ✓ Values preserved | — |
 | PQ / HLG decoding | ✓ Transfer-encoded RGB | ✓ |
 | Right-angle display rotation | ✓ | ✓ |
 | Audio ranges / resampling / channel mixing | ✓ float32 | ✓ |
@@ -93,6 +95,11 @@ For high-bit-depth video, use `VideoDecoder(path, output_dtype="auto")` to selec
 float32 above 8 bits, or `output_dtype="uint16"` for full-range 16-bit RGB.
 HDR output retains PQ/HLG encoding without SDR tone mapping. Rotation is applied
 automatically, and metadata dimensions match the output.
+
+For unmodified samples, use `VideoDecoder(path, output_format="native")`.
+Supported formats: `gray`, `gray12le`, `gray16le/be`, `rgb24`, `rgba`.
+Native output preserves channel count, integer values and pixel coordinates;
+`expected_pixel_format` optionally asserts the source format.
 
 ## Package size
 

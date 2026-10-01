@@ -12,6 +12,8 @@ concurrency:
   group: pypi-publish
   cancel-in-progress: false
 jobs:
+  macos:
+    uses: ./.github/workflows/macos-wheels.yml
   build:
     strategy:
       fail-fast: false
@@ -113,7 +115,7 @@ jobs:
           path: dist/*
           if-no-files-found: error
   publish:
-    needs: build
+    needs: [build, macos]
     if: inputs.publish
     runs-on: ubuntu-24.04
     environment:

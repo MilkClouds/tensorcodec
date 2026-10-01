@@ -84,8 +84,10 @@ class VideoDecoder(_Decoder):
         device=None,
         seek_mode="exact",
         transforms=None,
-        output_dtype=np.uint8,
+        output_dtype=None,
         custom_frame_mappings=None,
+        output_format="rgb",
+        expected_pixel_format=None,
     ):
         if dimension_order not in ("NCHW", "NHWC"):
             raise ValueError("dimension_order must be NCHW or NHWC")
@@ -99,6 +101,14 @@ class VideoDecoder(_Decoder):
             raise NotImplementedError("decoder transforms are not yet supported")
         if custom_frame_mappings is not None and seek_mode == "approximate":
             raise ValueError("custom_frame_mappings is incompatible with approximate seeking")
+        if output_format not in ("rgb", "native"):
+            raise ValueError("output_format must be 'rgb' or 'native'")
+        if expected_pixel_format is not None and output_format != "native":
+            raise ValueError("expected_pixel_format requires native output")
+        self.output_format = output_format
+        requested_dtype = output_dtype
+        if output_dtype is None:
+            output_dtype = "auto" if output_format == "native" else np.uint8
         auto_dtype = isinstance(output_dtype, str) and output_dtype == "auto"
         if auto_dtype:
             self._dtype = np.dtype(np.uint8)
@@ -115,7 +125,7 @@ class VideoDecoder(_Decoder):
         self._closed = False
         self._native = NativeDecoder(_source(source), "video", stream_index, int(num_ffmpeg_threads))
         try:
-            header = self._native.metadata()
+            header = self._native.metadata(apply_rotation=output_format != "native")
             self.stream_index = header["stream_index"]
             self._time_base = Fraction(header.pop("time_base_num"), header.pop("time_base_den"))
             container_duration = header.pop("container_duration")
@@ -128,6 +138,24 @@ class VideoDecoder(_Decoder):
                 header["width"], header["height"] = header["height"], header["width"]
             if auto_dtype:
                 self._dtype = np.dtype(np.float32 if (header["bit_depth"] or 8) > 8 else np.uint8)
+            if output_format == "native":
+                pixel_format = header["pixel_format"]
+                if expected_pixel_format is not None and pixel_format != expected_pixel_format:
+                    raise ValueError(f"Expected source {expected_pixel_format}, got {pixel_format}")
+                layouts = {
+                    "gray": np.uint8,
+                    "gray12le": np.uint16,
+                    "gray16le": np.uint16,
+                    "gray16be": np.uint16,
+                    "rgb24": np.uint8,
+                    "rgba": np.uint8,
+                }
+                if pixel_format not in layouts:
+                    raise ValueError(f"Native output does not support pixel format {pixel_format!r}")
+                native_dtype = np.dtype(layouts[pixel_format])
+                if requested_dtype is not None and not auto_dtype and self._dtype != native_dtype:
+                    raise ValueError(f"native {pixel_format} requires output_dtype={native_dtype.name} or auto")
+                self._dtype = native_dtype
             numerator, denominator = header["pixel_aspect_ratio"]
             header["pixel_aspect_ratio"] = Fraction(numerator, denominator) if denominator else None
             self._mappings = None
@@ -243,18 +271,25 @@ class VideoDecoder(_Decoder):
             self._check_open()
             indices = self._normalize_indices(indices)
             data, pts, durations = self._native.decode_video(
-                self._targets(indices), self._dtype.name, self._mappings is not None
+                self._targets(indices),
+                "native" if self.output_format == "native" else self._dtype.name,
+                self._mappings is not None,
             )
             if self._rotation_turns:
                 # Copy to keep positive strides for consumers such as torch.from_numpy.
                 data = np.rot90(data, self._rotation_turns, axes=(1, 2)).copy()
             if self._order == "NCHW":
                 data = data.transpose(0, 3, 1, 2)
-            return FrameBatch(data, np.asarray(pts, dtype=np.float64), np.asarray(durations, dtype=np.float64))
+            return FrameBatch(
+                data,
+                np.asarray(pts, dtype=np.float64),
+                np.asarray(durations, dtype=np.float64),
+                self.metadata.pixel_format if self.output_format == "native" else None,
+            )
 
     def get_frame_at(self, index):
         batch = self.get_frames_at([index])
-        return Frame(batch.data[0], batch.pts_seconds[0], batch.duration_seconds[0])
+        return Frame(batch.data[0], batch.pts_seconds[0], batch.duration_seconds[0], batch.pixel_format)
 
     def __getitem__(self, key):
         if isinstance(key, numbers.Integral):
@@ -293,7 +328,7 @@ class VideoDecoder(_Decoder):
         if not self.metadata.begin_stream_seconds <= seconds < self.metadata.end_stream_seconds:
             raise IndexError("timestamp is outside the stream")
         batch = self.get_frames_played_at([seconds])
-        return Frame(batch.data[0], batch.pts_seconds[0], batch.duration_seconds[0])
+        return Frame(batch.data[0], batch.pts_seconds[0], batch.duration_seconds[0], batch.pixel_format)
 
     def get_frames_played_in_range(self, start_seconds, stop_seconds, fps=None):
         with self._lock:
@@ -310,7 +345,7 @@ class VideoDecoder(_Decoder):
                 count = math.ceil((stop_seconds - start_seconds) * fps)
                 grid = start_seconds + np.arange(count, dtype=np.float64) / fps
                 batch = self.get_frames_played_at(grid)
-                return FrameBatch(batch.data, grid, np.full(count, 1 / fps, dtype=np.float64))
+                return FrameBatch(batch.data, grid, np.full(count, 1 / fps, dtype=np.float64), batch.pixel_format)
             if start_seconds == stop_seconds:
                 return self.get_frames_at([])
             if self._mappings is not None:

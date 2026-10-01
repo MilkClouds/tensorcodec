@@ -18,7 +18,7 @@ def measure_wheel(path: Path) -> dict:
 
 
 def architecture(filename: str) -> str:
-    for target in ("x86_64", "aarch64"):
+    for target in ("x86_64", "aarch64", "arm64"):
         if filename.endswith(f"_{target}.whl"):
             return target
     raise ValueError(f"Unsupported wheel architecture: {filename}")
@@ -44,7 +44,7 @@ def format_report(wheels: list[dict], baseline: dict) -> str:
     ]
     for wheel in wheels:
         target = architecture(wheel["filename"])
-        old = previous.get(target)
+        old = previous.get(target) if "manylinux" in wheel["filename"] else None
         sizes = [f"{wheel[key] / 2**20:.2f}" for key in ("download_bytes", "unpacked_bytes")]
         deltas = [
             f"{(wheel[key] - old[key]) / 2**20:+.2f}" if old else "—" for key in ("download_bytes", "unpacked_bytes")

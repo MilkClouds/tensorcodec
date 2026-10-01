@@ -66,3 +66,18 @@ TensorCodec extensions. Right-angle display rotations are applied automatically;
 metadata dimensions describe the rotated output. Reflected and non-right-angle
 display matrices remain unsupported. Color metadata and pixel aspect ratio
 describe the source; HDR output is not linear light or sRGB.
+
+## Native video output
+
+`output_format="native"` bypasses color conversion and display transforms for
+`gray`, `gray12le`, `gray16le`, `gray16be`, `rgb24` and `rgba`. NCHW/NHWC keeps
+1, 3 or 4 channels. Output uses host-endian uint8/uint16 without range scaling;
+`output_dtype` may be omitted, `"auto"`, or the matching integer dtype.
+`expected_pixel_format` asserts the source layout. Unsupported formats, dtype
+conversions and changes of pixel format or dimensions fail explicitly.
+
+Frame/FrameBatch `pixel_format` records the native source format and survives
+indexing and FPS resampling. RGB results retain their existing behavior. Native
+mode preserves encoded pixel coordinates, including inputs with display matrices.
+Playback selection follows the same TorchCodec contract as RGB, including the
+frame overlapping a range's start; it does not copy PyAV's legacy PTS-only range rule.

@@ -9,6 +9,8 @@ def _repr(value):
     lines = [f"{type(value).__name__}:"]
     for field in fields(value):
         item = getattr(value, field.name)
+        if field.name == "pixel_format" and item is None:
+            continue
         label = "data (shape)" if field.name == "data" else field.name
         lines.append(f"  {label}: {item.shape if field.name == 'data' else item}")
     return "\n".join(lines) + "\n"
@@ -19,6 +21,7 @@ class Frame:
     data: np.ndarray
     pts_seconds: float
     duration_seconds: float
+    pixel_format: str | None = None
 
     def __post_init__(self):
         if self.data.ndim != 3:
@@ -40,6 +43,7 @@ class FrameBatch:
     data: np.ndarray
     pts_seconds: np.ndarray
     duration_seconds: np.ndarray
+    pixel_format: str | None = None
 
     def __post_init__(self):
         self.pts_seconds = np.asarray(self.pts_seconds, dtype=np.float64)
@@ -55,7 +59,7 @@ class FrameBatch:
             yield self[i]
 
     def __getitem__(self, key):
-        return FrameBatch(self.data[key], self.pts_seconds[key], self.duration_seconds[key])
+        return FrameBatch(self.data[key], self.pts_seconds[key], self.duration_seconds[key], self.pixel_format)
 
     def __len__(self):
         return len(self.data)
