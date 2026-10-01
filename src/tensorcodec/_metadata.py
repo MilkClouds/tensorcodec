@@ -34,6 +34,8 @@ class VideoStreamMetadata(StreamMetadata):
     end_stream_seconds: float | None
     num_frames: int | None
     average_fps: float | None
+    bit_depth: int | None = None
+    color_range: str | None = None
 
 
 @dataclass
