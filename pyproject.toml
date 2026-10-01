@@ -39,6 +39,9 @@ include = [
     { path = "docs/compatibility.md", format = "sdist" },
     { path = "docs/playback_semantics.md", format = "sdist" },
     { path = "docs/releasing.md", format = "sdist" },
+    { path = "docs/package_size.md", format = "sdist" },
+    { path = "docs/system_ffmpeg.md", format = "sdist" },
+    { path = "packaging/*.json", format = "sdist" },
     { path = "tests/*.py", format = "sdist" },
 ]
 

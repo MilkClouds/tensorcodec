@@ -10,3 +10,4 @@ scripts/build_ffmpeg.sh "$build_prefix/ffmpeg"
 export FFMPEG_DIR="$build_prefix/ffmpeg"
 export LD_LIBRARY_PATH="$FFMPEG_DIR/lib:$LD_LIBRARY_PATH"
 maturin build --release --locked --auditwheel repair --compatibility manylinux2014 --out dist
+python scripts/check_wheel_size.py dist/*.whl

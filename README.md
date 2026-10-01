@@ -3,6 +3,9 @@
 [![CI](https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/tensorcodec)](https://pypi.org/project/tensorcodec/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://pypi.org/project/tensorcodec/)
+<!-- wheel-size-badge:start -->
+[![Wheel download](https://img.shields.io/badge/wheel-10.9%20MB-blue)](#package-size)
+<!-- wheel-size-badge:end -->
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
 
 **TorchCodec-style video and audio decoding, without PyTorch.**
@@ -23,7 +26,7 @@ Legend for both tables: ✓ supported · △ limited support · — unavailable.
 
 | Module family | Component | TorchCodec 0.17.0 | TensorCodec 0.1.1 |
 | --- | --- | :---: | --- |
-| Decoders | Video · `VideoDecoder` | ✓ | △ CPU, SDR/HDR RGB |
+| Decoders | Video · `VideoDecoder` | ✓ | △ CPU, SDR |
 | | Audio · `AudioDecoder` | ✓ | △ CPU |
 | | Images | ✓ | — |
 | Encoders | Video / audio / JPEG / PNG | ✓ | — |
@@ -43,9 +46,8 @@ FPS-based decoder queries are available; clip samplers are not implemented.
 | | FPS queries / custom frame mappings | ✓ | ✓ |
 | Video · formats | CFR / VFR / offset PTS / B-frames | ✓ | ✓ Tested |
 | | NCHW / NHWC RGB | ✓ | ✓ |
-| | uint8 / float32 | ✓ | ✓ SDR/HDR; `auto` preserves high-depth precision |
-| | uint16 RGB | — | ✓ Full-range RGB48 |
-| | HDR transfer / display rotation | ✓ | △ PQ/HLG signal preservation; right-angle rotations |
+| | uint8 / float32 | ✓ | △ SDR |
+| | HDR transfer / display rotation | ✓ | — Explicit rejection |
 | Audio | Ranges / resampling / channel mixing | ✓ | ✓ float32 |
 | Input / output | Paths / URLs / bytes / seekable files | ✓ | ✓ |
 | | Encoded array input | `torch.Tensor` | 1-D uint8 NumPy arrays |
@@ -88,6 +90,39 @@ Use an existing virtual environment, or create one with `uv venv` first.
 Linux wheels bundle shared FFmpeg libraries. Source builds need Rust, libclang
 and FFmpeg 7 development headers/libraries.
 
+## Package size
+
+<!-- wheel-size:start -->
+Published PyPI Linux wheels, CPython 3.10: TensorCodec 0.1.1 / TorchCodec 0.17.0.
+
+| Package | Architecture | Download | Unpacked |
+| --- | --- | ---: | ---: |
+| TensorCodec | x86_64 | 10.7 MB | 25.9 MB |
+| TensorCodec | aarch64 | 10.9 MB | 24.0 MB |
+| TorchCodec | x86_64 | 10.0 MB | 23.4 MB |
+| TorchCodec | aarch64 | 8.8 MB | 21.9 MB |
+<!-- wheel-size:end -->
+
+Sizes include everything inside each wheel; external dependencies are excluded.
+MB = 1,000,000 bytes. Unpacked size is the sum of archive entries, not filesystem
+usage or total environment size. The badge shows the largest published TensorCodec
+Linux wheel download.
+
+| Runtime requirement | TensorCodec | TorchCodec 0.17.0 |
+| --- | --- | --- |
+| Python dependency | NumPy | PyTorch (install separately) |
+| FFmpeg shared libraries | Included, minimal FFmpeg 7 | Install separately |
+| Image codec libraries | No image API | Included |
+
+TorchCodec's wheel alone is smaller in this comparison. TensorCodec's installation
+advantage is avoiding PyTorch and a separate FFmpeg setup, rather than the smallest
+standalone wheel. These are PyPI artifacts; PyTorch's separate CPU/CUDA indexes can
+provide different builds. This is a size comparison, not a feature or speed comparison.
+
+Release limits per TensorCodec wheel: 15 MiB download / 35 MiB unpacked
+(1 MiB = 1,048,576 bytes). [Measurement and release policy](docs/package_size.md).
+For an existing FFmpeg installation, see the [source-build guide](docs/system_ffmpeg.md).
+
 ## Use
 
 ```python
@@ -106,11 +141,6 @@ with AudioDecoder("audio.wav", sample_rate=16000, num_channels=1) as audio:
 
 Decoded arrays keep their storage after the decoder closes. Input file objects
 remain caller-owned.
-
-Use `output_dtype="auto"` to preserve high-depth video as float32, or
-`output_dtype=np.uint16` for full-range 16-bit RGB. PQ/HLG output preserves the
-encoded signal; it is not tone mapped to SDR. Right-angle display rotation is
-applied automatically, and metadata dimensions match the output.
 
 ## Implementation
 

@@ -60,18 +60,12 @@ impl Decoder {
         &mut self,
         py: Python<'_>,
         targets: Vec<(i64, i64)>,
-        output_dtype: &str,
+        float_output: bool,
         exact: bool,
     ) -> PyResult<(PyObject, Vec<f64>, Vec<f64>)> {
         let inner = self.inner.as_mut().ok_or_else(closed)?;
-        let dtype = match output_dtype {
-            "uint8" => ffmpeg::OutputDtype::U8,
-            "uint16" => ffmpeg::OutputDtype::U16,
-            "float32" => ffmpeg::OutputDtype::F32,
-            _ => return Err(PyValueError::new_err("invalid video output dtype")),
-        };
         let output = py
-            .allow_threads(|| inner.video(targets, dtype, exact))
+            .allow_threads(|| inner.video(targets, float_output, exact))
             .map_err(ffmpeg::Error::into_py)?;
         let shape = (output.pts.len(), output.height, output.width, 3);
         let array = match output.pixels {
@@ -81,11 +75,6 @@ impl Decoder {
                 .into_any()
                 .unbind(),
             ffmpeg::Pixels::F32(data) => Array::from_shape_vec(shape, data)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
-                .into_pyarray(py)
-                .into_any()
-                .unbind(),
-            ffmpeg::Pixels::U16(data) => Array::from_shape_vec(shape, data)
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
                 .into_pyarray(py)
                 .into_any()

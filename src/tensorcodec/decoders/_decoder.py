@@ -99,16 +99,15 @@ class VideoDecoder(_Decoder):
             raise NotImplementedError("decoder transforms are not yet supported")
         if custom_frame_mappings is not None and seek_mode == "approximate":
             raise ValueError("custom_frame_mappings is incompatible with approximate seeking")
-        auto_dtype = isinstance(output_dtype, str) and output_dtype == "auto"
-        if auto_dtype:
+        if isinstance(output_dtype, str) and output_dtype == "auto":
             self._dtype = np.dtype(np.uint8)
         else:
             try:
                 self._dtype = np.dtype(output_dtype)
             except TypeError as error:
-                raise ValueError("output_dtype must be uint8, uint16, float32 or auto") from error
-            if self._dtype not in (np.dtype(np.uint8), np.dtype(np.uint16), np.dtype(np.float32)):
-                raise ValueError("output_dtype must be uint8, uint16, float32 or auto")
+                raise ValueError("output_dtype must be uint8, float32 or auto") from error
+            if self._dtype not in (np.dtype(np.uint8), np.dtype(np.float32)):
+                raise ValueError("output_dtype must be uint8, float32 or auto")
         self._order = dimension_order
         self._seek_mode = seek_mode
         self._lock = RLock()
@@ -119,15 +118,10 @@ class VideoDecoder(_Decoder):
             self.stream_index = header["stream_index"]
             self._time_base = Fraction(header.pop("time_base_num"), header.pop("time_base_den"))
             container_duration = header.pop("container_duration")
-            rotation = header["rotation"] or 0
-            turns = round(rotation / 90)
-            if not math.isclose(rotation, turns * 90, abs_tol=1e-3):
-                raise NotImplementedError("only multiples of 90 degrees of display rotation are supported")
-            self._rotation_turns = turns % 4
-            if self._rotation_turns % 2:
-                header["width"], header["height"] = header["height"], header["width"]
-            if auto_dtype:
-                self._dtype = np.dtype(np.float32 if (header["bit_depth"] or 8) > 8 else np.uint8)
+            if header["rotation"] not in (None, 0):
+                raise NotImplementedError("videos with display rotation are not yet supported")
+            if header["color_transfer_characteristic"] in ("smpte2084", "arib-std-b67"):
+                raise NotImplementedError("HDR transfer functions are not yet supported")
             numerator, denominator = header["pixel_aspect_ratio"]
             header["pixel_aspect_ratio"] = Fraction(numerator, denominator) if denominator else None
             self._mappings = None
@@ -243,11 +237,8 @@ class VideoDecoder(_Decoder):
             self._check_open()
             indices = self._normalize_indices(indices)
             data, pts, durations = self._native.decode_video(
-                self._targets(indices), self._dtype.name, self._mappings is not None
+                self._targets(indices), self._dtype == np.float32, self._mappings is not None
             )
-            if self._rotation_turns:
-                # Copy to keep positive strides for consumers such as torch.from_numpy.
-                data = np.rot90(data, self._rotation_turns, axes=(1, 2)).copy()
             if self._order == "NCHW":
                 data = data.transpose(0, 3, 1, 2)
             return FrameBatch(data, np.asarray(pts, dtype=np.float64), np.asarray(durations, dtype=np.float64))

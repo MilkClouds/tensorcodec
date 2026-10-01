@@ -1,0 +1,42 @@
+{
+  "tensorcodec": {
+    "version": "0.1.1",
+    "source": "https://pypi.org/project/tensorcodec/0.1.1/",
+    "wheels": [
+      {
+        "filename": "tensorcodec-0.1.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "download_bytes": 10699643,
+        "unpacked_bytes": 25885194,
+        "sha256": "15350c7a75afa64ac01b11d81b21183d245aac789e7e8002e1ffa02f1911235e",
+        "url": "https://files.pythonhosted.org/packages/9b/b1/1d6a3cfda745cf651d7c88968a9470be98fb3834100b1be826aee8011725/tensorcodec-0.1.1-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+      },
+      {
+        "filename": "tensorcodec-0.1.1-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+        "download_bytes": 10903127,
+        "unpacked_bytes": 23996467,
+        "sha256": "43ad879c5fed414a20673ea59496b63148d3dfea3b3acb18e25141d40af3669d",
+        "url": "https://files.pythonhosted.org/packages/8e/1d/309a74319d7eeeb50771e06b2f691630dd7faf34b743fd8134d01a3d0940/tensorcodec-0.1.1-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+      }
+    ]
+  },
+  "torchcodec": {
+    "version": "0.17.0",
+    "source": "https://pypi.org/project/torchcodec/0.17.0/",
+    "wheels": [
+      {
+        "filename": "torchcodec-0.17.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl",
+        "download_bytes": 9956598,
+        "unpacked_bytes": 23369767,
+        "sha256": "ba26d900b3941eac8176b5c42bed0e2315cc154f07037a385e211ec39af989bf",
+        "url": "https://files.pythonhosted.org/packages/74/00/9e004afc9dcee01e7daee1aa6e4a2d456b4cd401e11f65377d690f7cbde4/torchcodec-0.17.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+      },
+      {
+        "filename": "torchcodec-0.17.0-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl",
+        "download_bytes": 8837707,
+        "unpacked_bytes": 21924669,
+        "sha256": "0ab2f00d849ba7b24e1ddcc4ed575d988fe4ed54f39c6a55575a1a47674eff9c",
+        "url": "https://files.pythonhosted.org/packages/1b/b2/533096223449c2e378e54157c090a349f230b67df3e45f8887897dcf2861/torchcodec-0.17.0-cp310-cp310-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl"
+      }
+    ]
+  }
+}

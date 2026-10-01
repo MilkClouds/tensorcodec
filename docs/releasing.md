@@ -61,3 +61,22 @@ and source links are recorded in `licenses/README.md`.
   x86_64 and ARM64 runners also run the full pinned playback oracle comparison.
 - Release validation still tests the installed repaired wheel. The fixture CLI
   can be FFmpeg 6 or 7; fixtures explicitly remove auxiliary sentinel packets.
+
+## Size checks and published comparison
+
+Final repaired wheels must stay within 15 MiB download and 35 MiB unpacked per
+architecture. The build job checks `packaging/size-policy.json` and uploads a
+separate `wheel-size-*` report, including differences from the last published
+baseline. Size reports must not be placed in `dist/`.
+
+After a successful publication, the `update-size-docs` job measures hash-verified
+PyPI wheels for the release and pinned TorchCodec 0.17.0. It commits the published
+snapshot and README table/badge with a normal push to `main`. Only this documentation
+job has `contents: write`; the PyPI publisher retains OIDC plus read access. The
+repository must permit the Actions bot to push these documentation updates.
+
+If the documentation job fails after a successful publication, recover by running
+`scripts/update_size_comparison.py --version <published-version>` and committing
+its two outputs. Never retry publication of an already uploaded version. See the
+[package size policy](package_size.md) for measurement definitions and the
+[external FFmpeg guide](system_ffmpeg.md) for the optional source-build path.

@@ -1,0 +1,9 @@
+{
+  "max_download_bytes": 15728640,
+  "max_unpacked_bytes": 36700160,
+  "comparison": {
+    "project": "torchcodec",
+    "version": "0.17.0",
+    "python_tag": "cp310"
+  }
+}

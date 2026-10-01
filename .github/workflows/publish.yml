@@ -67,6 +67,14 @@ jobs:
         with:
           path: .native-deps
           key: ${{ steps.native-cache.outputs.cache-primary-key }}
+      - name: Check final wheel size
+        run: uv run --no-project python scripts/check_wheel_size.py dist/*.whl --output reports/wheel-size.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wheel-size-${{ matrix.target }}
+          path: reports/wheel-size.json
+          if-no-files-found: warn
       - name: Build source distribution
         if: matrix.target == 'x86_64'
         run: uvx --from 'maturin>=1.8,<2' maturin sdist --out dist
@@ -121,3 +129,29 @@ jobs:
           merge-multiple: true
           path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
+  update-size-docs:
+    needs: publish
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: '3.12'
+      - name: Measure published wheels and refresh documentation
+        run: |
+          version=$(uv run --no-project python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          uv run --no-project python scripts/update_size_comparison.py --version "$version"
+      - name: Commit published size snapshot
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add README.md packaging/size-baseline.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'docs: update published wheel size comparison'
+            git push origin HEAD:main
+          fi

@@ -401,23 +401,6 @@ impl Decoder {
                 )?;
                 let pixel_format: av::AVPixelFormat = std::mem::transmute(params.format);
                 data.set_item("pixel_format", name(av::av_get_pix_fmt_name(pixel_format)))?;
-                let descriptor = av::av_pix_fmt_desc_get(pixel_format);
-                data.set_item(
-                    "bit_depth",
-                    if descriptor.is_null() {
-                        None
-                    } else {
-                        Some((*descriptor).comp[0].depth)
-                    },
-                )?;
-                data.set_item(
-                    "color_range",
-                    if params.color_range == av::AVColorRange::AVCOL_RANGE_UNSPECIFIED {
-                        None
-                    } else {
-                        name(av::av_color_range_name(params.color_range))
-                    },
-                )?;
                 data.set_item(
                     "color_space",
                     if params.color_space == av::AVColorSpace::AVCOL_SPC_UNSPECIFIED {
@@ -443,21 +426,14 @@ impl Decoder {
                         name(av::av_color_transfer_name(params.color_trc))
                     },
                 )?;
-                let side_data = av::av_packet_side_data_get(
-                    params.coded_side_data,
-                    params.nb_coded_side_data,
+                let mut size = 0;
+                let matrix = av::av_stream_get_side_data(
+                    self.stream(),
                     av::AVPacketSideDataType::AV_PKT_DATA_DISPLAYMATRIX,
+                    &mut size,
                 );
-                let rotation = if !side_data.is_null() && (*side_data).size >= 36 {
-                    let matrix = (*side_data).data as *const i32;
-                    let determinant = *matrix as f64 * *matrix.add(4) as f64
-                        - *matrix.add(1) as f64 * *matrix.add(3) as f64;
-                    if determinant <= 0. {
-                        return Err(pyo3::exceptions::PyNotImplementedError::new_err(
-                            "reflected or singular display matrices are unsupported",
-                        ));
-                    }
-                    Some(av::av_display_rotation_get(matrix))
+                let rotation = if !matrix.is_null() && size >= 36 {
+                    Some(-av::av_display_rotation_get(matrix as *const i32))
                 } else {
                     None
                 };
@@ -561,13 +537,12 @@ impl Decoder {
     pub fn video(
         &mut self,
         targets: Vec<(i64, i64)>,
-        dtype: OutputDtype,
+        float_output: bool,
         exact: bool,
     ) -> Result<Video> {
         if self.audio {
             return Err(failure("cannot decode video from audio stream"));
         }
-        let high_depth = !matches!(dtype, OutputDtype::U8);
         let width = unsafe { (*self.codec).width } as usize;
         let height = unsafe { (*self.codec).height } as usize;
         let count = width
@@ -580,7 +555,7 @@ impl Decoder {
         let mut pixels = vec![
             0u8;
             total
-                .checked_mul(if high_depth { 2 } else { 1 })
+                .checked_mul(if float_output { 2 } else { 1 })
                 .and_then(|n| n.checked_add(64))
                 .ok_or_else(|| failure("batch is too large"))?
         ];
@@ -595,7 +570,7 @@ impl Decoder {
                 .push(i);
         }
         let mut active_key = None;
-        let stride = count * if high_depth { 2 } else { 1 };
+        let stride = count * if float_output { 2 } else { 1 };
         for (target, (key, positions)) in requests {
             if active_key != Some(key) {
                 self.seek(key)?;
@@ -627,7 +602,7 @@ impl Decoder {
                         return Err(failure("dynamic frame dimensions are unsupported"));
                     }
                     let input_format: av::AVPixelFormat = std::mem::transmute(frame.format);
-                    let output_format = if high_depth {
+                    let output_format = if float_output {
                         av::AVPixelFormat::AV_PIX_FMT_RGB48LE
                     } else {
                         av::AVPixelFormat::AV_PIX_FMT_RGB24
@@ -722,7 +697,7 @@ impl Decoder {
                     if rows != frame.height {
                         return Err(failure("color conversion failed"));
                     }
-                    let row_bytes = width * 3 * if high_depth { 2 } else { 1 };
+                    let row_bytes = width * 3 * if float_output { 2 } else { 1 };
                     for row in 0..height {
                         ptr::copy_nonoverlapping(
                             (*self.rgb_frame).data[0]
@@ -745,25 +720,18 @@ impl Decoder {
                 break;
             }
         }
-        pixels.truncate(total * if high_depth { 2 } else { 1 });
-        let pixels = match dtype {
-            OutputDtype::F32 => Pixels::F32(
+        pixels.truncate(total * if float_output { 2 } else { 1 });
+        let pixels = if float_output {
+            Pixels::F32(
                 pixels
                     .as_chunks::<2>()
                     .0
                     .iter()
                     .map(|p| u16::from_le_bytes([p[0], p[1]]) as f32 / 65535.)
                     .collect(),
-            ),
-            OutputDtype::U16 => Pixels::U16(
-                pixels
-                    .as_chunks::<2>()
-                    .0
-                    .iter()
-                    .map(|p| u16::from_le_bytes(*p))
-                    .collect(),
-            ),
-            OutputDtype::U8 => Pixels::U8(pixels),
+            )
+        } else {
+            Pixels::U8(pixels)
         };
         Ok(Video {
             pixels,
@@ -877,13 +845,7 @@ impl Resampler {
 
 pub enum Pixels {
     U8(Vec<u8>),
-    U16(Vec<u16>),
     F32(Vec<f32>),
-}
-pub enum OutputDtype {
-    U8,
-    U16,
-    F32,
 }
 pub struct Video {
     pub pixels: Pixels,
