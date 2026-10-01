@@ -53,7 +53,7 @@ with AudioDecoder("audio.wav", sample_rate=16000, num_channels=1) as audio:
 Arrays keep their storage after the decoder closes. Paths, URLs, encoded bytes,
 1-D uint8 arrays and seekable file objects are supported.
 
-For time-based windows without an initial full packet scan (unreleased):
+For time-based windows without an initial full packet scan (since v0.1.4):
 
 ```python
 with VideoDecoder("video.mkv", seek_mode="timestamp") as decoder:
@@ -66,7 +66,7 @@ indices, `len(decoder)`, or `get_all_frames()`. See [the contract](docs/compatib
 
 ## Features
 
-TensorCodec 0.1.3 relative to TorchCodec 0.17.0.
+TensorCodec 0.1.4 relative to TorchCodec 0.17.0.
 ✓ supported · △ partial support · — not implemented.
 
 | Component | TensorCodec | TorchCodec 0.17.0 |

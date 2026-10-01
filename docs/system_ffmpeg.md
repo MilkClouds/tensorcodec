@@ -37,7 +37,7 @@ test -f "$FFMPEG_DIR/include/libavcodec/avcodec.h"
 test -f "$FFMPEG_DIR/lib/libavcodec.so.61"
 
 uv venv
-uv pip install --no-binary tensorcodec 'tensorcodec==0.1.3'
+uv pip install --no-binary tensorcodec 'tensorcodec==0.1.4'
 ```
 
 The version/build constraint avoids silently selecting an incompatible FFmpeg
