@@ -18,14 +18,14 @@ CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
 
 </div>
 
-- **API.** CPU video/audio decoder interfaces follow TorchCodec, returning NumPy
-  arrays instead of PyTorch tensors. PyTorch is not a dependency.
-- **Playback semantics.** Frame selection, ordering, timestamps and audio ranges
-  are validated against TorchCodec 0.17.0 and independently generated media.
-- **Implementation.** Rust/PyO3 bindings to FFmpeg process frame batches in a
-  single native call, avoiding per-frame Python calls.
-- **Distribution.** Linux wheels are 10.7–10.9 MB (v0.1.1), including FFmpeg shared
-  libraries. NumPy is the only Python dependency.
+- **TorchCodec API without PyTorch.** CPU video/audio decoder interfaces follow
+  TorchCodec and return NumPy arrays.
+- **Validated playback semantics.** Frame selection, ordering, timestamps and audio
+  ranges are checked against TorchCodec 0.17.0 and independently generated media.
+- **Efficient batch decoding.** Rust/PyO3 bindings to FFmpeg process frame batches
+  in a single native call, avoiding per-frame Python calls.
+- **Lightweight installation.** Linux wheels are 10.7–10.9 MB (v0.1.1), including
+  FFmpeg shared libraries. NumPy is the only Python dependency.
 
 ## Quick start
 
