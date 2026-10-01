@@ -116,7 +116,9 @@ def check(root: Path):
         batch = decoder.get_frames_at([9, 0, 5])
         np.testing.assert_allclose(batch.pts_seconds, [0.9, 0.0, 0.5])
         diff = np.abs(batch.data.astype(np.int16) - expected[[9, 0, 5]])
-        assert diff.max() <= 2, diff.max()  # RGB conversion may round differently from the FFmpeg CLI
+        # RGB conversion may round differently from the generating FFmpeg CLI, most on aarch64,
+        # where FFmpeg 8 converts with NEON.
+        assert diff.max() <= 3, diff.max()
     for fmt, channels, storage in [("gray12le", 1, "<u2"), ("gray16be", 1, ">u2"), ("rgba", 4, "u1")]:
         expected = np.frombuffer((root / f"{fmt}.raw").read_bytes(), dtype=storage).reshape(3, 11, 19, channels)
         with VideoDecoder(root / f"{fmt}.nut", output_format="native") as decoder:

@@ -58,7 +58,9 @@ def test_display_rotation(rotation_source, tmp_path, angle, dtype, order):
         np.testing.assert_array_equal(np.from_dlpack(batch.data), expected)
     if dtype == np.uint8 and order == "NHWC":
         reference = ffmpeg_rgb(path, "rgb24", (3, height, width, 3))
-        np.testing.assert_allclose(batch.data, reference[[2, 0, 2]], atol=1, rtol=0)
+        # The CLI converts after rotating, so on aarch64 FFmpeg 8 only one side may take
+        # swscale's NEON path (widths that are multiples of 16), which rounds differently.
+        np.testing.assert_allclose(batch.data, reference[[2, 0, 2]], atol=2, rtol=0)
 
 
 def test_non_right_angle_is_explicit(rotation_source, tmp_path):
