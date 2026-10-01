@@ -54,14 +54,40 @@ Arrays keep their storage after the decoder closes. Paths, URLs, encoded bytes,
 
 ## Features
 
-| Capability | Supported |
-| --- | --- |
-| **Frame selection** | Indexing, slicing, batches, playback timestamps and FPS sampling |
-| **Seeking** | Exact by default; approximate mode and custom frame mappings |
-| **Video output** | NCHW / NHWC RGB; uint8, uint16 and float32 |
-| **Video fidelity** | High-bit-depth output, PQ/HLG signals and right-angle display rotation |
-| **Audio** | Time ranges, resampling and channel mixing; float32 output |
-| **Interoperability** | NumPy arrays, array interface and DLPack |
+Implementation status relative to TorchCodec 0.17.0.
+✓ supported · △ partial support · — not implemented.
+
+| Component | TensorCodec | TorchCodec 0.17.0 |
+| --- | --- | --- |
+| Video decoder | △ CPU, SDR/HDR RGB | ✓ CPU / CUDA |
+| Audio decoder | ✓ CPU | ✓ CPU |
+| Image decoders | — | ✓ |
+| Video / audio / image encoders | — | ✓ |
+| Clip samplers | — | ✓ |
+| Decoder transforms | — | ✓ |
+
+FPS-based frame queries are supported; clip samplers are a separate API.
+
+### Decoder compatibility
+
+| Capability | TensorCodec | TorchCodec 0.17.0 |
+| --- | --- | --- |
+| Index / slice / batch selection | ✓ | ✓ |
+| Playback timestamp / range queries | ✓ | ✓ |
+| Request order and duplicate frames | Preserved | Preserved |
+| Exact / approximate seeking | ✓ Default: exact | ✓ |
+| FPS queries / custom frame mappings | ✓ | ✓ |
+| CFR / VFR / offset PTS / B-frames | ✓ Tested | ✓ |
+| NCHW / NHWC RGB output | ✓ | ✓ |
+| uint8 / float32 / automatic dtype | ✓ SDR and high-bit-depth video | ✓ |
+| uint16 RGB output | ✓ Full-range RGB48 | — |
+| PQ / HLG decoding | ✓ Transfer-encoded RGB | ✓ |
+| Right-angle display rotation | ✓ | ✓ |
+| Audio ranges / resampling / channel mixing | ✓ float32 | ✓ |
+| Paths / URLs / bytes / seekable file objects | ✓ | ✓ |
+| Encoded array input | 1-D uint8 NumPy array | PyTorch tensor |
+| Decoded output | NumPy array; array interface / DLPack | PyTorch tensor |
+| CUDA decoding | — | ✓ |
 
 For high-bit-depth video, use `VideoDecoder(path, output_dtype="auto")` to select
 float32 above 8 bits, or `output_dtype="uint16"` for full-range 16-bit RGB.
@@ -107,17 +133,35 @@ indexes can provide different artifacts.
 
 ## Scope and compatibility
 
-TensorCodec targets TorchCodec 0.17.0's **CPU video/audio playback semantics**:
-frame selection, ordering, timestamps and audio ranges. Tests compare these
-against the pinned reference and independently generated media.
+The supported CPU API is checked for frame selection, ordering, timestamps,
+durations, stream selection and metadata, both against TorchCodec 0.17.0 and
+independently generated media.
 
-- **Wheels:** Linux x86_64 and ARM64, glibc 2.17+, CPython 3.10+; requires a compatible NumPy wheel.
-- **Scope:** CPU decoding. CUDA, images, encoders, clip samplers and decoder transforms are not implemented.
-- **Seeking cost:** exact mode scans packet timestamps on open; audio ranges decode from the beginning.
+- Pixel comparisons allow color-conversion rounding of at most 1 uint8 unit or
+  1/65535 for float32 in the tested cases.
+- Empty index lists are supported, including the case affected by the reference's
+  empty-list dtype inference bug.
+- NumPy output preserves the decoder API structure; callers expecting
+  `torch.Tensor` must adapt their array handling.
 
-See the [compatibility contract](docs/compatibility.md) for pixel tolerances and
-API differences, and [container behavior](docs/container_robustness.md) for seek
-limitations. Measure performance on your workload with the [benchmark tools](benchmarks/README.md).
+See the [compatibility contract](docs/compatibility.md) and
+[playback rules](docs/playback_semantics.md) for the tested behavior.
+
+### Current limits
+
+- **Wheels:** Linux x86_64 and ARM64 (aarch64), glibc 2.17+, CPython 3.10+.
+  NumPy must also provide a compatible wheel; newer Python versions may require
+  a newer glibc. macOS, Windows, musl/Alpine and free-threaded Python wheels are
+  not release targets yet.
+- **Exact seeking:** scans packet timestamps when opening the decoder. Incorrect
+  container keyframe flags can produce corrupt frames; repaired input or corrected
+  frame mappings are needed in that case.
+- **Audio ranges:** decode from the beginning, so late ranges can be expensive.
+- **Video conversion:** no HDR-to-SDR tone mapping or native YUV-plane output.
+  Reflected and non-right-angle display matrices are unsupported.
+
+See [container behavior](docs/container_robustness.md) for seek limitations and
+[benchmark tools](benchmarks/README.md) for workload measurements.
 
 ## Development and verification
 
