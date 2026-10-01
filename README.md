@@ -66,6 +66,8 @@ Details and the tested scope: [compatibility contract](docs/compatibility.md).
 - Binary wheels: **Linux x86_64, glibc 2.28+, CPython 3.10+**.
 - No macOS or Windows wheels yet; free-threaded Python is not a release target.
 - Exact video seeking scans packet timestamps when opening the decoder.
+- Seeking trusts container keyframe flags; incorrect flags can corrupt decoded
+  frames. Corrected frame mappings or a repaired input are needed in that case.
 - Audio range queries currently decode from the beginning; late ranges can be
   expensive.
 - NumPy return types require caller changes where code expects Torch tensors.
