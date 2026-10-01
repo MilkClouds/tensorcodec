@@ -1,63 +1,59 @@
 [project]
-name = "avdec"
-dynamic = ["version"]
-description = "Batch video frame loader for ML training. Drop-in TorchCodec API in pure Python — NumPy output, no PyTorch required."
+name = "tensorcodec"
+version = "0.1.0"
+description = "NumPy audio/video decoding with TorchCodec-compatible playback semantics"
 readme = "README.md"
 license = "MIT"
-authors = [
-    { name = "Suhwan Choi", email = "milkclouds00@gmail.com" }
-]
+license-files = ["LICENSE", "licenses/*"]
+authors = [{ name = "Suhwan Choi", email = "milkclouds00@gmail.com" }]
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.26"]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
     "Topic :: Multimedia :: Video",
-    "Topic :: Scientific/Engineering",
-    "Typing :: Typed",
 ]
-requires-python = ">=3.9"
-dependencies = [
-    "av>=15.0",  # FFmpeg 7.0 support
-    "numpy>=1.20",
-]
+
+[project.urls]
+Repository = "https://github.com/MilkClouds/tensorcodec"
+Issues = "https://github.com/MilkClouds/tensorcodec/issues"
 
 [dependency-groups]
-dev = [
-    "pytest>=7.0",
-    "pytest-cov",
-    "ruff>=0.3.0",
-]
-benchmark = [
-    "torchcodec>=0.1",
-    "pyfuse3>=3.2",
-    "trio>=0.22",
-    "matplotlib>=3.7",
-]
+dev = ["pytest>=8", "ruff>=0.9", "maturin>=1.8,<2"]
+oracle = ["torch==2.14.1", "torchcodec==0.17.0"]
 
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.8,<2"]
+build-backend = "maturin"
 
-[tool.hatch.version]
-source = "vcs"
-
-[tool.hatch.build.hooks.vcs]
-version-file = "src/avdec/_version.py"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/avdec"]
-
-[tool.ruff]
-line-length = 119
+[tool.maturin]
+manifest-path = "native/Cargo.toml"
+python-source = "src"
+module-name = "tensorcodec._native"
+features = ["pyo3/extension-module"]
+include = [
+    { path = "scripts/*.sh", format = "sdist" },
+    { path = "scripts/*.py", format = "sdist" },
+    { path = "docs/compatibility.md", format = "sdist" },
+    { path = "docs/playback_semantics.md", format = "sdist" },
+    { path = "docs/releasing.md", format = "sdist" },
+    { path = "tests/*.py", format = "sdist" },
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+torchcodec = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

@@ -23,7 +23,7 @@ Usage::
 
     # Custom corpus
     python -m benchmarks --prepare --num-videos 16 --video-duration 120
-    python -m benchmarks --no-io --decoders avdec torchcodec
+    python -m benchmarks --no-io --decoders tensorcodec torchcodec
 """
 
 from __future__ import annotations

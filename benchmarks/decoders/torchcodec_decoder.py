@@ -58,10 +58,8 @@ class TorchCodecDecoder:
         stop_seconds: float,
         fps: Optional[float] = None,
     ) -> np.ndarray:
-        if fps is not None:
-            raise ValueError("TorchCodecDecoder does not support the fps parameter")
         dec = self._open(video_path)
-        batch = dec.get_frames_played_in_range(start_seconds, stop_seconds)
+        batch = dec.get_frames_played_in_range(start_seconds, stop_seconds, fps=fps)
         return batch.data.numpy()  # NCHW uint8
 
     def get_video_duration(self, video_path: str) -> float:
@@ -90,8 +88,8 @@ class TorchCodecGPUDecoder(TorchCodecDecoder):
         )
 
     def _open(self, video_path: str) -> TorchCodecVideoDecoder:
-        # NOTE: beta backend present at torchcodec>=0.8.0
-        with set_cuda_backend("beta"):
+        # TorchCodec 0.17 uses the nvdec backend name; GPU is not validated here.
+        with set_cuda_backend("nvdec"):
             return TorchCodecVideoDecoder(
                 video_path,
                 device="cuda",
@@ -111,10 +109,8 @@ class TorchCodecGPUDecoder(TorchCodecDecoder):
         stop_seconds: float,
         fps: Optional[float] = None,
     ) -> np.ndarray:
-        if fps is not None:
-            raise ValueError("TorchCodecGPUDecoder does not support the fps parameter")
         dec = self._open(video_path)
-        batch = dec.get_frames_played_in_range(start_seconds, stop_seconds)
+        batch = dec.get_frames_played_in_range(start_seconds, stop_seconds, fps=fps)
         return batch.data.cpu().numpy()  # GPU → CPU → NumPy
 
 

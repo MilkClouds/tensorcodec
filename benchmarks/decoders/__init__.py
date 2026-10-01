@@ -9,14 +9,14 @@ from __future__ import annotations
 
 from typing import Union
 
-from benchmarks.decoders.avdec_decoder import AvdecDecoder
+from benchmarks.decoders.tensorcodec_decoder import TensorCodecDecoder
 from benchmarks.protocol import VideoDecoderProtocol
 
 # Values are either a class (called with no args) or a ready instance.
 _Entry = Union[type[VideoDecoderProtocol], VideoDecoderProtocol]
 
 DECODERS: dict[str, _Entry] = {
-    "avdec": AvdecDecoder,
+    "tensorcodec": TensorCodecDecoder,
 }
 
 # Optional decoders — register only when the library is importable.

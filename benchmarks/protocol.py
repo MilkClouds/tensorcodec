@@ -1,7 +1,7 @@
 """Protocol and result types for decoder benchmarks.
 
 A decoder only needs to satisfy :class:`VideoDecoderProtocol` to be
-benchmarked. The protocol mirrors avdec's public API:
+benchmarked. The protocol mirrors tensorcodec's public API:
 
     - ``get_frames_played_at``
     - ``get_frames_played_in_range``

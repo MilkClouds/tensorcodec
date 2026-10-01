@@ -1,20 +1,18 @@
-"""Benchmark adapter for avdec."""
+"""Benchmark adapter for tensorcodec."""
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 import numpy as np
 
-from avdec import VideoDecoder
+from tensorcodec.decoders import VideoDecoder
 
 
-class AvdecDecoder:
-    """Wraps :class:`avdec.VideoDecoder` for the benchmark protocol."""
+class TensorCodecDecoder:
+    """Wraps :class:`tensorcodec.decoders.VideoDecoder` for the benchmark protocol."""
 
-    name = "avdec"
+    name = "tensorcodec"
 
-    def get_frames_played_at(self, video_path: str, seconds: List[float]) -> np.ndarray:
+    def get_frames_played_at(self, video_path: str, seconds: list[float]) -> np.ndarray:
         with VideoDecoder(video_path) as dec:
             batch = dec.get_frames_played_at(seconds)
             return batch.data  # NCHW uint8
@@ -24,7 +22,7 @@ class AvdecDecoder:
         video_path: str,
         start_seconds: float,
         stop_seconds: float,
-        fps: Optional[float] = None,
+        fps: float | None = None,
     ) -> np.ndarray:
         with VideoDecoder(video_path) as dec:
             batch = dec.get_frames_played_in_range(start_seconds, stop_seconds, fps=fps)

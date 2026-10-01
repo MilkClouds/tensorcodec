@@ -1,0 +1,18 @@
+[package]
+name = "tensorcodec-native"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["abi3-py310"] }
+numpy = "0.23"
+ffmpeg-sys-next = { version = "7.1", default-features = false, features = ["avcodec", "avformat", "swscale", "swresample"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

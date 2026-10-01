@@ -1,3 +1,5 @@
+> Historical avdec/PyAV document. These results do not describe TensorCodec.
+
 # Container & Codec Robustness
 
 avdec delegates all FFmpeg interaction to [PyAV](https://github.com/PyAV-Org/PyAV),

@@ -1,7 +1,7 @@
 """Container & codec robustness benchmark.
 
 Generates synthetic videos in various codec × container combinations and
-measures random-seek performance for avdec and (optionally) TorchCodec.
+measures random-seek performance for tensorcodec and (optionally) TorchCodec.
 
 Usage::
 
@@ -75,8 +75,8 @@ def _create_video(
 # ---------------------------------------------------------------------------
 
 
-def _bench_avdec(path: str, windows: list[list[float]]) -> str:
-    from avdec import VideoDecoder
+def _bench_tensorcodec(path: str, windows: list[list[float]]) -> str:
+    from tensorcodec.decoders import VideoDecoder
 
     try:
         with VideoDecoder(path) as d:
@@ -127,7 +127,7 @@ def main() -> None:
     windows = [[t + o for o in np.arange(-1.0, 0.05, 0.1).tolist()] for t in ts]
 
     with tempfile.TemporaryDirectory(prefix="container_bench_") as tmp:
-        hdr = f"{'codec.container':20s} {'avdec':>10s} {'TC(apx)':>10s} {'TC(ext)':>10s}  {'apx/avdec':>10s}"
+        hdr = f"{'codec.container':20s} {'tensorcodec':>10s} {'TC(apx)':>10s} {'TC(ext)':>10s}  {'apx/tensorcodec':>10s}"
         print(hdr)
         print("-" * len(hdr))
 
@@ -139,7 +139,7 @@ def main() -> None:
                 print(f"{codec_label}.{ext:20s} CREATE FAILED: {e}")
                 continue
 
-            r1 = _bench_avdec(path, windows)
+            r1 = _bench_tensorcodec(path, windows)
             r2 = _bench_torchcodec(path, windows, "approximate")
             r3 = _bench_torchcodec(path, windows, "exact")
             try:

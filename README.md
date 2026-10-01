@@ -1,172 +1,105 @@
-# avdec
+# TensorCodec
 
-[![PyPI](https://img.shields.io/pypi/v/avdec.svg)](https://pypi.org/project/avdec/)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://pypi.org/project/avdec/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/MilkClouds/avdec/blob/main/LICENSE)
+NumPy audio/video decoding with the CPU playback semantics of **TorchCodec
+0.17.0**, without a PyTorch runtime dependency.
 
-[**Installation**](#installation) | [**Quick Start**](#quick-start) | [**API Reference**](#api) | [**Contributing**](#contributing)
-
-**Timestamp-based video decoder for VLA / robotics training — `pip install avdec`, NumPy output, no PyTorch required.**
-
-```bash
-pip install avdec
-```
+Python implements the public API and frame-selection rules. A small Rust/PyO3
+extension owns FFmpeg decoding, seeking, color conversion and resampling.
+The sole Python runtime dependency is NumPy. Linux wheels bundle shared FFmpeg
+libraries; source builds need FFmpeg development libraries and Rust.
 
 ```python
-from avdec import VideoDecoder
+from tensorcodec.decoders import VideoDecoder, AudioDecoder
 
-with VideoDecoder("video.mp4") as decoder:
-    batch = decoder.get_frames_played_at([0.0, 1.0, 2.0])
-    print(batch.data.shape)  # (3, 3, H, W) — NCHW uint8
+with VideoDecoder("video.mp4") as video:
+    frame = video.get_frame_played_at(1.25)
+    print(frame.data.shape, frame.pts_seconds)  # CHW NumPy array
+    batch = video.get_frames_at([4, 0, 4])      # preserves order and duplicates
+    clip = video.get_frames_played_in_range(0, 1, fps=8)
+
+with AudioDecoder("audio.wav", sample_rate=16000, num_channels=1) as audio:
+    samples = audio.get_samples_played_in_range(0, 1)
+    print(samples.data.shape)                 # channels × samples, float32
 ```
 
-![benchmark](benchmarks/results/readme.png)
+Video supports uint8 and high-precision float32 RGB, NCHW/NHWC layout, exact or
+approximate seeking, custom frame mappings and stream metadata. Inputs can be
+paths, URLs, encoded bytes, 1-D uint8 arrays or seekable binary file objects.
+NumPy arrays provide the array interface and DLPack interoperability, and keep
+their storage after a decoder closes. File objects remain caller-owned.
 
-> VLA-style workload: random seek + clip read on 64 × 5 min videos (640×480, H.264, 30 fps, GOP 10). [Full results →](benchmarks/RESULTS.md)
-
-| | decord | TorchCodec | **avdec** |
-|---|---|---|---|
-| **Frame at *t* seconds** | ❌ index-only | ✅ | ✅ |
-| **PyTorch-free** | ✅ | ❌ | ✅ |
-| **Just `pip install`** | ⚠️ unmaintained since 2021 | ⚠️ PyTorch + CUDA + FFmpeg | ✅ |
-
----
-
-## Why avdec?
-
-avdec is a video decoder for **ML training data loading** — not for playback, editing, or streaming. It targets one specific access pattern: **random seek by timestamp + short clip read**, the same pattern found in VLA (Vision-Language-Action) and robotics training pipelines such as [LeRobot](https://github.com/huggingface/lerobot) and [MediaRef](https://github.com/open-world-agents/mediaref).
-
-### Timestamp-only by design
-
-In VLA training, you sample clips at random *times* across videos of varying frame rates. The question is always "what frame is displayed at *t* seconds?", not "give me frame #*N*".
-
-avdec exposes only two methods — `get_frames_played_at(seconds)` and `get_frames_played_in_range(start, stop)` — and no index-based access. This is a deliberate choice:
-
-- **decord** provides `vr[i]` and `get_batch([i, j, k])` — index-first. To get "the frame at 2.5 s" you must manually compute `int(2.5 * fps)`, which breaks on variable-frame-rate videos.
-- **TorchCodec** supports both timestamp and index access. avdec shares its timestamp API and [playback-frame semantics](docs/playback_semantics.md) (`frame[i].pts ≤ t < frame[i+1].pts`), but drops the index path and the PyTorch dependency.
-
-### What you get
-
-1. **Single `pip install`, nothing else.** PyAV wheels [bundle FFmpeg](https://pyav.basswood-io.com/docs/stable/overview/installation.html) — no system packages, no `conda install ffmpeg`, no version matrix. The entire dependency tree comes from PyPI.
-
-2. **Correct frame selection by default.** Playback-frame semantics guarantee the frame that *would be displayed* at each requested timestamp. avdec's output is [tested frame-by-frame against TorchCodec](tests/test_torchcodec_compat.py).
-
-3. **I/O-efficient seeking.** On random-access workloads avdec reads **20 KB/frame** from disk — on par with TorchCodec approximate mode (21.4 KB). This matters on network storage and shared clusters.
-
-4. **Stable across containers.** avdec delegates seeking to FFmpeg via [PyAV](https://pyav.basswood-io.com/) — performance is consistent across MP4, MKV, WebM, AVI, and MPEG-TS regardless of codec. [Details →](docs/container_robustness.md)
-
-<!-- 5. **Pre-training video diagnostics.** `avdec.doctor()` inspects videos and reports issues (sparse keyframes, VFR, misplaced moov atom) with concrete `ffmpeg` fix commands — before training begins. -->
-
-### What avdec does *not* do
-
-- Frame-index access (`decoder[i]`) — unnecessary for timestamp-based training pipelines.
-- GPU decoding — if you need NVDEC, use TorchCodec.
-- Sequential streaming — for sequential throughput, TorchCodec with multi-threading is faster (2,325 vs 654 FPS).
+The initial scope is CPU video/audio decoding. CUDA, transforms, HDR tone
+mapping, rotated video, encoders and samplers are unsupported. Output types are
+NumPy arrays; this is not full TorchCodec package compatibility. Audio range
+queries currently decode from the beginning, so late queries can be expensive.
+See [the compatibility contract](docs/compatibility.md) for playback rules and
+verification boundaries. No historical avdec benchmark is a TensorCodec result.
 
 ## Installation
 
-```bash
-pip install avdec
+Install from PyPI:
+
+```sh
+python -m pip install tensorcodec
 ```
 
-**Requirements:** Python 3.9+ · `av>=15.0` · `numpy>=1.20`
+For a checkout before publication, install a local wheel with
+`python -m pip install dist/tensorcodec-*.whl`.
 
-That's the entire dependency tree — FFmpeg is bundled inside the PyAV wheel. No system packages, no `apt-get`, no `conda install ffmpeg`. Works on **Linux**, **macOS**, and **Windows**.
+Release wheels target Linux x86_64, glibc 2.28+, and the CPython stable ABI
+starting at Python 3.10. macOS and Windows wheels are not yet provided. Wheels require neither a system FFmpeg executable nor Torch/PyAV.
 
-## Quick Start
+## Development
 
-### Decode frames at specific timestamps
+Install Rust, Python 3.10+, Clang/libclang and pkg-config. For a system-library
+build, install **FFmpeg 7 development headers/libraries**, then:
 
-```python
-from avdec import VideoDecoder
-
-with VideoDecoder("video.mp4") as decoder:
-    # Frames at specific timestamps (playback semantics)
-    batch = decoder.get_frames_played_at([0.0, 1.0, 2.0])
-    print(batch.data.shape)  # (3, 3, H, W) — NCHW uint8
-    print(batch.pts_seconds) # [0.0, 1.0, 2.0]
+```sh
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install numpy pytest ruff 'maturin>=1.8,<2'
+maturin develop
 ```
 
-### Decode a time range
+Alternatively build the shared FFmpeg libraries bundled in Linux wheels. This
+needs curl, make, a C compiler, NASM on x86 and OpenSSL development headers:
 
-```python
-with VideoDecoder("video.mp4") as decoder:
-    # All frames in [start, stop)
-    batch = decoder.get_frames_played_in_range(0.0, 5.0)
-
-    # Resample to a fixed FPS
-    batch = decoder.get_frames_played_in_range(0.0, 5.0, fps=10.0)
+```sh
+scripts/build_ffmpeg.sh "$PWD/.ffmpeg"
+export FFMPEG_DIR="$PWD/.ffmpeg"
+export LD_LIBRARY_PATH="$FFMPEG_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+maturin develop
+maturin build --release --auditwheel repair --out dist
 ```
 
-### Inspect video metadata
+`maturin` needs `patchelf` for wheel repair. Use `--locked` when invoking Cargo
+checks; `native/Cargo.lock` records the Rust dependency graph.
 
-```python
-with VideoDecoder("video.mp4") as decoder:
-    m = decoder.metadata
-    print(f"{m.num_frames} frames, {m.duration_seconds}s, "
-          f"{m.width}×{m.height} @ {float(m.average_rate):.1f} fps")
+## Verification
+
+Tests generate their own fixtures with the FFmpeg/ffprobe command-line tools;
+those tools are development dependencies only. Fixtures cover CFR/VFR, offset
+PTS, B-frames, multiple streams, color matrices, odd frame widths, PCM, AAC,
+MP3, FLAC, resampling, ownership and concurrent decoders. The previous avdec
+implementation and tests are never executed.
+
+Install the pinned reference only in the test environment:
+
+```sh
+python -m pip install torch==2.14.1 torchcodec==0.17.0 \
+  --index-url https://download.pytorch.org/whl/cpu
+pytest tests/test_video_contract.py tests/test_audio_contract.py --backend torchcodec
+pytest --compare
+ruff check src/tensorcodec tests
+cargo fmt --manifest-path native/Cargo.toml --check
+cargo clippy --manifest-path native/Cargo.toml --locked -- -D warnings
 ```
 
-<!-- ### Diagnose videos for training
+`--compare` fails if the reference is unavailable or the wrong version. Without
+it, differential tests explicitly skip. Timing and pixels are checked separately;
+RGB comparisons allow documented conversion-rounding tolerances.
 
-```python
-import avdec
+TensorCodec is MIT licensed. Bundled native dependencies have their own
+[licenses and source/build notices](licenses/README.md).
 
-report = avdec.doctor("video.mp4")
-print(report)
-```
-
-```
-┌ video.mp4
-│ mov / h264 / 1920×1080
-│ 9000 frames / 300.0s / 30.00fps
-└ 648.2 MB
-
-⚠ Random frame access is slow
-   To read a random frame from this video,
-   you must first decode 150 frames on average.
-   ...
-   Recommendation: For training, re-encode with keyframe interval of 1 sec
-
-   $ ffmpeg -i "video.mp4" -c:v libx264 -g 30 -c:a copy "video_fixed.mp4"
-``` -->
-
-## API
-
-### `VideoDecoder(source, *, stream_index=None)`
-
-Opens a video file for decoding.
-
-- **`get_frames_played_at(seconds: list[float]) -> FrameBatch`** — Returns frames using playback semantics: frame *i* where `frame[i].pts <= timestamp < frame[i+1].pts`.
-- **`get_frames_played_in_range(start, stop, fps=None) -> FrameBatch`** — Returns all frames in `[start, stop)`. Pass `fps` to resample to a fixed frame rate.
-- **`metadata`** — `VideoStreamMetadata` with `num_frames`, `duration_seconds`, `average_rate`, `width`, `height`, `begin_stream_seconds`, `end_stream_seconds`.
-- **`close()`** / context manager — Releases resources.
-
-### `FrameBatch`
-
-Dataclass returned by both methods:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `data` | `np.ndarray` | `(N, C, H, W)` uint8 |
-| `pts_seconds` | `np.ndarray` | `(N,)` float64 — presentation timestamps |
-| `duration_seconds` | `np.ndarray` | `(N,)` float64 — per-frame durations |
-
-<!-- ### `doctor(path) -> DiagnosticReport`
-
-Analyzes a video for ML training suitability — keyframe intervals, frame rate consistency, moov atom position. Returns actionable findings with `ffmpeg` fix commands. -->
-
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request on [GitHub](https://github.com/MilkClouds/avdec).
-
-```bash
-git clone https://github.com/MilkClouds/avdec.git
-cd avdec
-pip install -e ".[dev]"
-pytest
-```
-
-## License
-
-[MIT](https://github.com/MilkClouds/avdec/blob/main/LICENSE)
+[Release setup and publishing](docs/releasing.md) use PyPI Trusted Publishing.
