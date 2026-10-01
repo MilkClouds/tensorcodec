@@ -282,7 +282,7 @@ impl Decoder {
                 this.video_layout = (
                     (*params).width,
                     (*params).height,
-                    std::mem::transmute((*params).format),
+                    std::mem::transmute::<i32, av::AVPixelFormat>((*params).format),
                 );
             }
             this.time_base = (*stream).time_base;
