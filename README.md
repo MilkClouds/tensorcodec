@@ -2,7 +2,7 @@
 
 # TensorCodec
 
-**Video and audio → NumPy. No PyTorch required.**
+CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
 
 <p align="center">
 <a href="https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml"><img src="https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
@@ -18,14 +18,14 @@
 
 </div>
 
-- **TorchCodec interface, NumPy output.** Use the familiar CPU video/audio decoder
-  API with NumPy arrays—no PyTorch dependency.
-- **Playback you can trust.** Frame selection, ordering, timestamps and audio ranges
-  are tested independently and checked against TorchCodec 0.17.0.
-- **Efficient Rust implementation.** Rust + FFmpeg handles frame batches in one
+- **API.** CPU video/audio decoder interfaces follow TorchCodec, returning NumPy
+  arrays instead of PyTorch tensors. PyTorch is not a dependency.
+- **Playback semantics.** Frame selection, ordering, timestamps and audio ranges
+  are validated against TorchCodec 0.17.0 and independently generated media.
+- **Implementation.** Rust/PyO3 bindings to FFmpeg decode each frame batch in one
   native call, releasing the GIL during decoding.
-- **Small, simple installs.** Linux wheels are **10.7–10.9 MB** (v0.1.1), including
-  FFmpeg. NumPy is the only Python dependency; install with a single command.
+- **Distribution.** Linux wheels are 10.7–10.9 MB (v0.1.1), including FFmpeg shared
+  libraries. NumPy is the only Python dependency.
 
 ## Quick start
 
@@ -70,15 +70,12 @@ automatically, and metadata dimensions match the output.
 
 ## Package size
 
-**One decoder wheel, with FFmpeg included.** If your environment already has
-NumPy, that wheel is the only additional Python package you need.
-
-For CPU video and audio decoding:
+The runtime dependencies for CPU video/audio decoding are:
 
 | Runtime footprint | TensorCodec | TorchCodec 0.17.0 |
 | --- | --- | --- |
-| Python packages | **TensorCodec + NumPy** | TorchCodec + PyTorch and its dependencies |
-| FFmpeg shared libraries | **Bundled in the wheel** | Separate installation |
+| Python packages | TensorCodec + NumPy | TorchCodec + PyTorch and its dependencies |
+| FFmpeg shared libraries | Bundled in the wheel | Separate installation |
 | Decoder output | NumPy arrays | PyTorch tensors |
 
 TensorCodec's wheel size includes its FFmpeg runtime. TorchCodec's excludes
