@@ -9,7 +9,7 @@ CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
 <a href="https://pypi.org/project/tensorcodec/"><img src="https://img.shields.io/pypi/v/tensorcodec" alt="PyPI"></a>
 <a href="https://pypi.org/project/tensorcodec/"><img src="https://img.shields.io/badge/Python-3.10%2B-blue" alt="Python"></a>
 <!-- wheel-size-badge:start -->
-<a href="#package-size"><img src="https://img.shields.io/badge/wheel-10.9%20MB-blue" alt="Wheel download"></a>
+<a href="#package-size"><img src="https://img.shields.io/badge/wheel-10.4%20MiB-blue" alt="Wheel download"></a>
 <!-- wheel-size-badge:end -->
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="License: MIT"></a>
 </p>
@@ -24,7 +24,7 @@ CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
   ranges are checked against TorchCodec 0.17.0 and independently generated media.
 - **Efficient batch decoding.** Rust/PyO3 bindings to FFmpeg process frame batches
   in a single native call, avoiding per-frame Python calls.
-- **Lightweight installation.** Linux wheels are 10.7–10.9 MB (v0.1.1), including
+- **Lightweight installation.** Linux wheels are 10.2–10.4 MiB (v0.1.1), including
   FFmpeg shared libraries. NumPy is the only Python dependency.
 
 ## Quick start
@@ -99,13 +99,13 @@ automatically, and metadata dimensions match the output.
 ## Package size
 
 <!-- wheel-size:start -->
-Linux CPU wheels, Python 3.12. Download / unpacked size in MB.
+Linux CPU wheels, Python 3.12. Download / unpacked size in MiB.
 
 | Package | x86_64 | ARM64 |
 | --- | ---: | ---: |
-| TensorCodec | 10.7 / 25.9 | 10.9 / 24.0 |
-| PyAV | 35.0 / 131.6 | 32.7 / 94.8 |
-| TorchCodec + PyTorch (CPU) | 206.2 / 738.9 | 168.1 / 614.1 |
+| TensorCodec | 10.2 / 24.7 | 10.4 / 22.9 |
+| PyAV | 33.4 / 125.5 | 31.2 / 90.4 |
+| TorchCodec + PyTorch (CPU) | 196.7 / 704.7 | 160.3 / 585.7 |
 <!-- wheel-size:end -->
 
 TensorCodec and PyAV bundle FFmpeg; TorchCodec needs it separately.

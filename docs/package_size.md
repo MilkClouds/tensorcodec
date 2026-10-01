@@ -15,7 +15,7 @@ The sole policy file is [`packaging/size-policy.json`](../packaging/size-policy.
 The checker uses only Python's standard library and never extracts the archive.
 Unpacked size excludes filesystem allocation overhead. Both metrics exclude NumPy,
 Python, package caches and other external dependencies; they are not total
-installation sizes. Reports use MiB (2^20 bytes); the README uses MB (10^6 bytes).
+installation sizes. Reports and the README use MiB (2^20 bytes).
 
 Check final, repaired wheels locally:
 

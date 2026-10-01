@@ -124,7 +124,7 @@ def test_comparison_adds_pytorch_to_torchcodec():
     for project, size in (("tensorcodec", 1), ("pyav", 2), ("torchcodec", 3), ("torch", 100)):
         snapshot[project] = {
             "wheels": [
-                {**artifact(target), "download_bytes": size * 1_000_000, "unpacked_bytes": size * 2_000_000}
+                {**artifact(target), "download_bytes": size * 2**20, "unpacked_bytes": size * 2**21}
                 for target in comparison.TARGETS
             ]
         }

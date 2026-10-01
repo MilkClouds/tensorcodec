@@ -87,7 +87,7 @@ def replace_block(text: str, start: str, end: str, content: str) -> str:
 
 def comparison_table(snapshot: dict) -> str:
     lines = [
-        "Linux CPU wheels, Python 3.12. Download / unpacked size in MB.",
+        "Linux CPU wheels, Python 3.12. Download / unpacked size in MiB.",
         "",
         "| Package | x86_64 | ARM64 |",
         "| --- | ---: | ---: |",
@@ -100,8 +100,8 @@ def comparison_table(snapshot: dict) -> str:
         cells = []
         for target in TARGETS:
             wheels = [w for p in projects for w in snapshot[p]["wheels"] if architecture(w["filename"]) == target]
-            download = sum(w["download_bytes"] for w in wheels) / 1e6
-            unpacked = sum(w["unpacked_bytes"] for w in wheels) / 1e6
+            download = sum(w["download_bytes"] for w in wheels) / 2**20
+            unpacked = sum(w["unpacked_bytes"] for w in wheels) / 2**20
             cells.append(f"{download:.1f} / {unpacked:.1f}")
         lines.append(f"| {label} | {' | '.join(cells)} |")
     return "\n".join(lines)
@@ -128,7 +128,7 @@ def main() -> None:
         parser.exit(1, "\n".join(failures) + "\n")
     largest = max(wheel["download_bytes"] for wheel in snapshot["tensorcodec"]["wheels"])
     badge = (
-        f'<a href="#package-size"><img src="https://img.shields.io/badge/wheel-{largest / 1e6:.1f}%20MB-blue" '
+        f'<a href="#package-size"><img src="https://img.shields.io/badge/wheel-{largest / 2**20:.1f}%20MiB-blue" '
         'alt="Wheel download"></a>'
     )
     readme = replace_block(args.readme.read_text(), START, END, comparison_table(snapshot))
