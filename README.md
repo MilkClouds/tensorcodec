@@ -21,7 +21,7 @@ TorchCodec includes decoders, encoders, sampling and transforms.
 
 Legend for both tables: ✓ supported · △ limited support · — unavailable.
 
-| Module family | Component | TorchCodec 0.17.0 | TensorCodec 0.1.0 |
+| Module family | Component | TorchCodec 0.17.0 | TensorCodec 0.1.1 |
 | --- | --- | :---: | --- |
 | Decoders | Video · `VideoDecoder` | ✓ | △ CPU, SDR |
 | | Audio · `AudioDecoder` | ✓ | △ CPU |
@@ -34,7 +34,7 @@ FPS-based decoder queries are available; clip samplers are not implemented.
 
 ### Decoder compatibility
 
-| Area | Capability | TorchCodec 0.17.0 | TensorCodec 0.1.0 |
+| Area | Capability | TorchCodec 0.17.0 | TensorCodec 0.1.1 |
 | --- | --- | :---: | --- |
 | Video · selection | Index / slice / batch | ✓ | ✓ |
 | | Playback time / range | ✓ | ✓ |
@@ -66,8 +66,10 @@ Details and the tested scope: [compatibility contract](docs/compatibility.md).
 
 ### Current limits
 
-- Binary wheels: **Linux x86_64, glibc 2.28+, CPython 3.10+**.
-- No macOS or Windows wheels yet; free-threaded Python is not a release target.
+- Binary wheels: **Linux x86_64 / ARM64 (aarch64), glibc 2.17+, CPython 3.10+**.
+- A compatible NumPy wheel is also required. On older glibc, the installer may
+  select an older NumPy; newer Python versions may require a newer glibc.
+- No macOS, Windows or musl/Alpine wheels yet; free-threaded Python is not a release target.
 - Exact video seeking scans packet timestamps when opening the decoder.
 - Seeking trusts container keyframe flags; incorrect flags can corrupt decoded
   frames. Corrected frame mappings or a repaired input are needed in that case.

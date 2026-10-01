@@ -13,54 +13,78 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64
+          - runner: ubuntu-24.04-arm
+            target: aarch64
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: '3.12'
       - uses: actions/cache@v4
         with:
           path: .native-deps
-          key: manylinux28-x86_64-${{ hashFiles('scripts/build_openssl.sh', 'scripts/build_ffmpeg.sh') }}
+          key: manylinux2014-${{ matrix.target }}-${{ hashFiles('scripts/build_openssl.sh', 'scripts/build_ffmpeg.sh') }}
       - name: Build portable Linux wheel
         uses: PyO3/maturin-action@v1
         with:
-          target: x86_64
-          manylinux: '2_28'
+          target: ${{ matrix.target }}
+          manylinux: '2014'
           command: build
           args: --release --locked --auditwheel repair --out dist
           before-script-linux: |
-            dnf install -y clang-devel
+            /opt/python/cp310-cp310/bin/python -m pip install libclang==18.1.1
+            export LIBCLANG_PATH="$(/opt/python/cp310-cp310/bin/python -c 'from clang import cindex; print(cindex.Config.library_path)')"
             prefix="$PWD/.native-deps"
             export PKG_CONFIG_PATH="$prefix/openssl/lib/pkgconfig"
             export LD_LIBRARY_PATH="$prefix/openssl/lib:$prefix/ffmpeg/lib"
             if [ ! -f "$prefix/ffmpeg/lib/libavformat.so.61" ]; then
-              dnf install -y nasm perl
+              yum install -y perl
+              if [ "$(uname -m)" = x86_64 ]; then yum install -y nasm; fi
               bash scripts/build_openssl.sh "$prefix/openssl"
               bash scripts/build_ffmpeg.sh "$prefix/ffmpeg"
             fi
             export FFMPEG_DIR="$prefix/ffmpeg"
       - name: Build source distribution
-        run: |
-          python -m pip install 'maturin>=1.8,<2'
-          maturin sdist --out dist
-      - name: Install tests and pinned reference
+        if: matrix.target == 'x86_64'
+        run: uvx --from 'maturin>=1.8,<2' maturin sdist --out dist
+      - name: Install validation tools and wheel
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          python -m pip install pytest numpy twine dist/*.whl
-          python -m pip install torch==2.14.1 torchcodec==0.17.0 --index-url https://download.pytorch.org/whl/cpu
+          uv venv
+          uv pip install pytest numpy twine dist/*.whl
+      - name: Generate baseline runtime fixtures
+        run: uv run --no-sync python scripts/check_wheel_runtime.py generate .runtime-fixtures
+      - name: Test on glibc 2.17 with Python 3.10 and 3.13
+        run: |
+          docker run --rm -v "$PWD:/io:ro" quay.io/pypa/manylinux2014_${{ matrix.target }} bash -euxc '
+            for abi in cp310-cp310 cp313-cp313; do
+              python="/opt/python/$abi/bin/python"
+              "$python" -m venv "/tmp/$abi"
+              runtime="/tmp/$abi/bin/python"
+              "$runtime" -m pip install --only-binary=:all: /io/dist/*.whl
+              env -u LD_LIBRARY_PATH "$runtime" /io/scripts/check_wheel_runtime.py check /io/.runtime-fixtures
+            done
+          '
+      - name: Install pinned reference
+        run: uv pip install torch==2.14.1 torchcodec==0.17.0 --index-url https://download.pytorch.org/whl/cpu
       - name: Use bundled FFmpeg for the reference
-        run: python scripts/configure_oracle_ffmpeg.py
+        run: uv run --no-sync python scripts/configure_oracle_ffmpeg.py
       - name: Validate distribution and playback
         run: |
-          python -m twine check dist/*
-          pytest tests/test_video_contract.py tests/test_audio_contract.py --backend torchcodec
-          pytest --compare
+          uv run --no-sync python -m twine check dist/*
+          uv run --no-sync pytest tests/test_video_contract.py tests/test_audio_contract.py --backend torchcodec
+          uv run --no-sync pytest --compare
       - uses: actions/upload-artifact@v4
         with:
-          name: pypi-distributions
+          name: pypi-distributions-${{ matrix.target }}
           path: dist/*
           if-no-files-found: error
   publish:
@@ -76,6 +100,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: pypi-distributions
+          pattern: pypi-distributions-*
+          merge-multiple: true
           path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
