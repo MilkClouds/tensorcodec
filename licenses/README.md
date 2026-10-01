@@ -8,6 +8,11 @@ upstream source is https://ffmpeg.org/releases/ffmpeg-7.1.5.tar.xz; the build
 script records the configuration. FFmpeg libraries remain dynamically linked
 and can be rebuilt/replaced with an ABI-compatible build.
 
+libavcodec statically includes dav1d 1.5.4 (AV1 decoding), licensed under the
+BSD 2-Clause license (`dav1d.txt`). Its exact source is
+https://downloads.videolan.org/pub/videolan/dav1d/1.5.4/dav1d-1.5.4.tar.xz;
+`scripts/build_dav1d.sh` records the checksum and build configuration.
+
 Release wheels also bundle shared OpenSSL 3.5.9 LTS, licensed
 under Apache-2.0. Its exact source is
 https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz;

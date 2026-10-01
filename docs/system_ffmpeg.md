@@ -7,7 +7,7 @@ uv venv
 uv pip install tensorcodec
 ```
 
-Supported Linux wheels include minimal shared FFmpeg 7.1.5 and OpenSSL libraries.
+Supported Linux wheels include minimal shared FFmpeg 7.1.5 (with dav1d for AV1) and OpenSSL libraries.
 No FFmpeg CLI, Pixi, Rust or libclang is required at runtime. This is the recommended
 installation for a new environment.
 
