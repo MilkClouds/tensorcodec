@@ -36,12 +36,20 @@ jobs:
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
           echo "LIBCLANG_PATH=$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib" >> "$GITHUB_ENV"
           echo "$HOME/.pixi/envs/ffmpeg/bin" >> "$GITHUB_PATH"
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: native-cache
         with:
           path: .native-deps/macos
           key: macos14-${{ matrix.arch }}-${{ hashFiles('scripts/build_openssl.sh', 'scripts/build_ffmpeg.sh', 'scripts/build_macos_wheel.sh') }}
       - name: Build and bundle wheel
         run: bash scripts/build_macos_wheel.sh
+      - uses: actions/cache/save@v4
+        if: always() && steps.native-cache.outputs.cache-hit != 'true' && hashFiles('.native-deps/macos/ready') != ''
+        with:
+          path: .native-deps/macos
+          key: ${{ steps.native-cache.outputs.cache-primary-key }}
+      - name: Hide build-time FFmpeg libraries
+        run: mv .native-deps/macos .native-deps/macos-build-only
       - name: Validate installed wheel
         run: |
           uv pip install dist/*.whl
@@ -55,6 +63,12 @@ jobs:
             uv pip install --python "/tmp/runtime-$version/bin/python" dist/*.whl
             "/tmp/runtime-$version/bin/python" scripts/check_wheel_runtime.py check .runtime-fixtures
           done
+      - name: Restore build cache
+        if: always()
+        run: |
+          if [ -d .native-deps/macos-build-only ]; then
+            mv .native-deps/macos-build-only .native-deps/macos
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: pypi-distributions-macos-${{ matrix.arch }}

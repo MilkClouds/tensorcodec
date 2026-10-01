@@ -64,7 +64,7 @@ enum Reader {
 }
 unsafe extern "C" fn read_memory(opaque: *mut c_void, buffer: *mut u8, size: i32) -> i32 {
     if size <= 0 {
-        return -22;
+        return av::AVERROR(libc::EINVAL);
     }
     let reader = &mut *(opaque as *mut Reader);
     let input = match reader {
@@ -121,13 +121,13 @@ unsafe extern "C" fn seek_memory(opaque: *mut c_void, offset: i64, whence: i32) 
         0 => 0,
         1 => input.position as i64,
         2 => input.data.len() as i64,
-        _ => return -22,
+        _ => return i64::from(av::AVERROR(libc::EINVAL)),
     };
     let Some(position) = base.checked_add(offset) else {
-        return -22;
+        return i64::from(av::AVERROR(libc::EINVAL));
     };
     if position < 0 || position > input.data.len() as i64 {
-        return -22;
+        return i64::from(av::AVERROR(libc::EINVAL));
     }
     input.position = position as usize;
     position
@@ -146,6 +146,7 @@ pub struct Decoder {
     index: i32,
     time_base: av::AVRational,
     audio: bool,
+    video_layout: (i32, i32, av::AVPixelFormat),
     draining: bool,
 }
 // SAFETY: all pointers are uniquely owned. PyO3's mutable borrow plus the Python
@@ -194,6 +195,7 @@ impl Decoder {
             index: 0,
             time_base: av::AVRational { num: 0, den: 1 },
             audio,
+            video_layout: (0, 0, av::AVPixelFormat::AV_PIX_FMT_NONE),
             draining: false,
         };
         unsafe {
@@ -275,6 +277,13 @@ impl Decoder {
             let params = (*stream).codecpar;
             if (*params).codec_type != media_type {
                 return Err(Error("stream has the wrong media type".into(), true));
+            }
+            if !audio {
+                this.video_layout = (
+                    (*params).width,
+                    (*params).height,
+                    std::mem::transmute((*params).format),
+                );
             }
             this.time_base = (*stream).time_base;
             if this.time_base.den <= 0 || this.time_base.num <= 0 {
@@ -518,7 +527,7 @@ impl Decoder {
                 if code == av::AVERROR_EOF {
                     return Ok(false);
                 }
-                if code != -11 {
+                if code != av::AVERROR(libc::EAGAIN) {
                     check(code, "receive decoded frame")?;
                 }
                 if self.draining {
@@ -573,7 +582,7 @@ impl Decoder {
             return Err(failure("cannot decode video from audio stream"));
         }
         let native = matches!(dtype, OutputDtype::Native);
-        let source_format = unsafe { (*self.codec).pix_fmt };
+        let (width, height, source_format) = self.video_layout;
         let (channels, dtype, big_endian) = if native {
             use av::AVPixelFormat::*;
             match source_format {
@@ -593,8 +602,7 @@ impl Decoder {
             (3, dtype, false)
         };
         let high_depth = !matches!(dtype, OutputDtype::U8);
-        let width = unsafe { (*self.codec).width } as usize;
-        let height = unsafe { (*self.codec).height } as usize;
+        let (width, height) = (width as usize, height as usize);
         let count = width
             .checked_mul(height)
             .and_then(|n| n.checked_mul(channels))

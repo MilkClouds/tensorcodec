@@ -163,3 +163,97 @@ def test_native_preserves_pixel_coordinates(tmp_path, matrix):
     with VideoDecoder(rotated, output_format="native") as decoder:
         assert (decoder.metadata.height, decoder.metadata.width) == (11, 19)
         np.testing.assert_array_equal(decoder[0], expected.transpose(2, 0, 1))
+
+
+def test_native_without_optional_codecs(native_video, tmp_path):
+    import subprocess
+    import sys
+
+    path, _, expected = native_video
+    reference = tmp_path / "expected.npy"
+    np.save(reference, expected)
+    script = """
+import importlib.abc, sys
+class Block(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname.split('.')[0] in {'av', 'torch', 'torchcodec'}:
+            raise ImportError('forbidden dependency: ' + fullname)
+sys.meta_path.insert(0, Block())
+import numpy as np
+from tensorcodec.decoders import VideoDecoder
+with VideoDecoder(sys.argv[1], output_format='native') as decoder:
+    np.testing.assert_array_equal(decoder[:], np.load(sys.argv[2]).transpose(0, 3, 1, 2))
+assert not {'av', 'torch', 'torchcodec'}.intersection(sys.modules)
+"""
+    subprocess.run([sys.executable, "-c", script, str(path), str(reference)], check=True, timeout=30)
+
+
+@pytest.mark.parametrize("changed", ["format", "dimensions"])
+def test_native_rejects_changing_layout_on_repeated_calls(tmp_path, changed):
+    paths = []
+    for i in range(2):
+        fmt = "rgba" if i and changed == "format" else "rgb24"
+        width = 23 if i and changed == "dimensions" else 19
+        channels = 4 if fmt == "rgba" else 3
+        raw, path = tmp_path / f"{i}.raw", tmp_path / f"{i}.mov"
+        raw.write_bytes(np.full((11, width, channels), i * 31, dtype=np.uint8).tobytes())
+        run_ffmpeg(
+            "-f",
+            "rawvideo",
+            "-pixel_format",
+            fmt,
+            "-video_size",
+            f"{width}x11",
+            "-framerate",
+            10,
+            "-i",
+            raw,
+            "-c:v",
+            "png",
+            "-threads",
+            1,
+            path,
+        )
+        paths.append(path)
+    manifest = tmp_path / "concat.txt"
+    manifest.write_text("".join(f"file '{path}'\n" for path in paths))
+    merged = tmp_path / "changing.mov"
+    run_ffmpeg("-f", "concat", "-safe", 0, "-i", manifest, "-c", "copy", merged)
+    with VideoDecoder(merged, output_format="native") as decoder:
+        for indices in ([0, 1], [1]):
+            with pytest.raises((ValueError, RuntimeError), match="pixel format changed|dynamic frame dimensions"):
+                decoder.get_frames_at(indices)
+
+
+@pytest.mark.parametrize("fmt", ["gray", "gray16le"])
+def test_native_lossless_compressed_depth(tmp_path, fmt):
+    dtype = np.uint8 if fmt == "gray" else np.dtype("<u2")
+    expected = (np.arange(8 * 32 * 48).reshape(8, 32, 48) * 17).astype(dtype)
+    raw, path = tmp_path / "depth.raw", tmp_path / "depth.mkv"
+    raw.write_bytes(expected.tobytes())
+    run_ffmpeg(
+        "-f",
+        "rawvideo",
+        "-pixel_format",
+        fmt,
+        "-video_size",
+        "48x32",
+        "-framerate",
+        10,
+        "-i",
+        raw,
+        "-c:v",
+        "ffv1",
+        "-level",
+        3,
+        "-g",
+        2,
+        "-pix_fmt",
+        fmt,
+        "-threads",
+        1,
+        path,
+    )
+    with VideoDecoder(path, output_format="native") as decoder:
+        for indices in ([7, 0, 4, 7], [3, 1, 0, 3]):
+            np.testing.assert_array_equal(decoder.get_frames_at(indices).data[:, 0], expected[indices])
