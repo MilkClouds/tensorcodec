@@ -54,9 +54,7 @@ Arrays keep their storage after the decoder closes. Paths, URLs, encoded bytes,
 
 ## Features
 
-Current source implementation relative to TorchCodec 0.17.0. The published
-0.1.1 wheels predate HDR/rotation support, uint16 output and high-depth `auto`
-selection; those features currently require a source build.
+TensorCodec 0.1.2 relative to TorchCodec 0.17.0.
 ✓ supported · △ partial support · — not implemented.
 
 | Component | TensorCodec | TorchCodec 0.17.0 |
