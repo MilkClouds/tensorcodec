@@ -64,5 +64,6 @@ float32 for source component depths above 8 bits, including high-depth SDR.
 Explicit uint16 returns full-range RGB48 and is a TensorCodec extension; it is
 not native YUV output. Source `bit_depth` and `color_range` metadata are also
 TensorCodec extensions. Right-angle display rotations are applied automatically;
-metadata dimensions describe the rotated output. See the
-[video fidelity contract and priorities](video_fidelity.md) for limits and tests.
+metadata dimensions describe the rotated output. Reflected and non-right-angle
+display matrices remain unsupported. Color metadata and pixel aspect ratio
+describe the source; HDR output is not linear light or sRGB.

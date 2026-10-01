@@ -112,8 +112,6 @@ Use `output_dtype="auto"` to preserve high-depth video as float32, or
 `output_dtype=np.uint16` for full-range 16-bit RGB. PQ/HLG output preserves the
 encoded signal; it is not tone mapped to SDR. Right-angle display rotation is
 applied automatically, and metadata dimensions match the output.
-See [video fidelity and priorities](docs/video_fidelity.md) for precise semantics
-and remaining work, including raw source planes and HDR display conversion.
 
 ## Implementation
 

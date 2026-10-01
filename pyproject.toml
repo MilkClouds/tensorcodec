@@ -37,7 +37,6 @@ include = [
     { path = "scripts/*.sh", format = "sdist" },
     { path = "scripts/*.py", format = "sdist" },
     { path = "docs/compatibility.md", format = "sdist" },
-    { path = "docs/video_fidelity.md", format = "sdist" },
     { path = "docs/playback_semantics.md", format = "sdist" },
     { path = "docs/releasing.md", format = "sdist" },
     { path = "tests/*.py", format = "sdist" },
