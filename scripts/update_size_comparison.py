@@ -109,7 +109,10 @@ def main() -> None:
     if failures:
         parser.exit(1, "\n".join(failures) + "\n")
     largest = max(wheel["download_bytes"] for wheel in snapshot["tensorcodec"]["wheels"])
-    badge = f"[![Wheel download](https://img.shields.io/badge/wheel-{largest / 1e6:.1f}%20MB-blue)](#package-size)"
+    badge = (
+        f'<a href="#package-size"><img src="https://img.shields.io/badge/wheel-{largest / 1e6:.1f}%20MB-blue" '
+        'alt="Wheel download"></a>'
+    )
     readme = replace_block(args.readme.read_text(), START, END, comparison_table(snapshot))
     readme = replace_block(readme, BADGE_START, BADGE_END, badge)
     args.output.parent.mkdir(parents=True, exist_ok=True)

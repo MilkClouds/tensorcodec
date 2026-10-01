@@ -1,97 +1,92 @@
+<div align="center">
+
 # TensorCodec
 
-[![CI](https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/tensorcodec)](https://pypi.org/project/tensorcodec/)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://pypi.org/project/tensorcodec/)
+**Video and audio → NumPy. No PyTorch required.**
+
+<p align="center">
+<a href="https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml"><img src="https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+<a href="https://pypi.org/project/tensorcodec/"><img src="https://img.shields.io/pypi/v/tensorcodec" alt="PyPI"></a>
+<a href="https://pypi.org/project/tensorcodec/"><img src="https://img.shields.io/badge/Python-3.10%2B-blue" alt="Python"></a>
 <!-- wheel-size-badge:start -->
-[![Wheel download](https://img.shields.io/badge/wheel-10.9%20MB-blue)](#package-size)
+<a href="#package-size"><img src="https://img.shields.io/badge/wheel-10.9%20MB-blue" alt="Wheel download"></a>
 <!-- wheel-size-badge:end -->
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="License: MIT"></a>
+</p>
 
-**TorchCodec-style video and audio decoding, without PyTorch.**
+[Quick start](#quick-start) · [Features](#features) · [Package size](#package-size) · [Compatibility](docs/compatibility.md)
 
-- Use the CPU decoder API and playback rules of TorchCodec 0.17.0.
-- Get NumPy arrays instead of `torch.Tensor`.
-- Install NumPy + TensorCodec. No Torch, PyAV, or FFmpeg CLI at runtime.
+</div>
 
-The goal is predictable frame selection, timestamps and audio ranges with a small
-runtime dependency set. This is a **CPU decoding subset**, not the entire
-TorchCodec package. It does not promise a speedup over PyAV or TorchCodec.
+- **TorchCodec interface, NumPy output.** Use the familiar CPU video/audio decoder
+  API with NumPy arrays—no PyTorch dependency.
+- **Playback you can trust.** Frame selection, ordering, timestamps and audio ranges
+  are tested independently and checked against TorchCodec 0.17.0.
+- **Efficient Rust implementation.** Rust + FFmpeg handles frame batches in one
+  native call, releasing the GIL during decoding.
+- **Small, simple installs.** Linux wheels are **10.7–10.9 MB** (v0.1.1), including
+  FFmpeg. NumPy is the only Python dependency; install with a single command.
 
-## Scope compared with TorchCodec
-
-TorchCodec includes decoders, encoders, sampling and transforms.
-
-Legend for both tables: ✓ supported · △ limited support · — unavailable.
-
-| Module family | Component | TorchCodec 0.17.0 | TensorCodec 0.1.1 |
-| --- | --- | :---: | --- |
-| Decoders | Video · `VideoDecoder` | ✓ | △ CPU, SDR/HDR RGB |
-| | Audio · `AudioDecoder` | ✓ | △ CPU |
-| | Images | ✓ | — |
-| Encoders | Video / audio / JPEG / PNG | ✓ | — |
-| Samplers | Clip sampling | ✓ | — |
-| Transforms | Decoder transforms | ✓ | — |
-
-FPS-based decoder queries are available; clip samplers are not implemented.
-
-### Decoder compatibility
-
-| Area | Capability | TorchCodec 0.17.0 | TensorCodec 0.1.1 |
-| --- | --- | :---: | --- |
-| Video · selection | Index / slice / batch | ✓ | ✓ |
-| | Playback time / range | ✓ | ✓ |
-| | Order / duplicates preserved | ✓ | ✓ |
-| | Exact / approximate seek | ✓ | ✓ Default: exact |
-| | FPS queries / custom frame mappings | ✓ | ✓ |
-| Video · formats | CFR / VFR / offset PTS / B-frames | ✓ | ✓ Tested |
-| | NCHW / NHWC RGB | ✓ | ✓ |
-| | uint8 / float32 | ✓ | ✓ SDR/HDR; `auto` preserves high-depth precision |
-| | uint16 RGB | — | ✓ Full-range RGB48 |
-| | HDR transfer / display rotation | ✓ | △ PQ/HLG signal preservation; right-angle rotations |
-| Audio | Ranges / resampling / channel mixing | ✓ | ✓ float32 |
-| Input / output | Paths / URLs / bytes / seekable files | ✓ | ✓ |
-| | Encoded array input | `torch.Tensor` | 1-D uint8 NumPy arrays |
-| | Decoded arrays | `torch.Tensor` | `numpy.ndarray` + array interface / DLPack |
-| Execution | CPU | ✓ | ✓ |
-| | CUDA | ✓ | — |
-| | Python runtime dependency | PyTorch | NumPy |
-
-### Compatibility means
-
-- Match the supported CPU API's frame selection, ordering, timing and metadata.
-- Check behavior independently and against pinned TorchCodec 0.17.0.
-- Allow color-conversion rounding: at most 1 uint8 unit or 1/65535 for float32
-  in the tested cases. Do not claim identical pixels across every FFmpeg build.
-- Accept empty index lists, including the case affected by the reference's
-  empty-list dtype inference bug.
-
-Details and the tested scope: [compatibility contract](docs/compatibility.md).
-
-### Current limits
-
-- Binary wheels: **Linux x86_64 / ARM64 (aarch64), glibc 2.17+, CPython 3.10+**.
-- A compatible NumPy wheel is also required. On older glibc, the installer may
-  select an older NumPy; newer Python versions may require a newer glibc.
-- No macOS, Windows or musl/Alpine wheels yet; free-threaded Python is not a release target.
-- Exact video seeking scans packet timestamps when opening the decoder.
-- Seeking trusts container keyframe flags; incorrect flags can corrupt decoded
-  frames. Corrected frame mappings or a repaired input are needed in that case.
-- Audio range queries currently decode from the beginning; late ranges can be
-  expensive.
-- NumPy return types require caller changes where code expects Torch tensors.
-
-## Install
+## Quick start
 
 ```sh
 uv pip install tensorcodec
 ```
 
 Use an existing virtual environment, or create one with `uv venv` first.
-Linux wheels bundle shared FFmpeg libraries. Source builds need Rust, libclang
-and FFmpeg 7 development headers/libraries.
+No separate FFmpeg installation is needed for the published Linux wheels.
+
+```python
+from tensorcodec.decoders import VideoDecoder, AudioDecoder
+
+with VideoDecoder("video.mp4") as video:
+    frame = video[0]                                  # RGB array: (C, H, W)
+    batch = video.get_frames_at([4, 0, 4])              # requested order, including duplicates
+    clip = video.get_frames_played_in_range(0, 1, fps=8)
+
+with AudioDecoder("audio.wav", sample_rate=16000, num_channels=1) as audio:
+    samples = audio.get_samples_played_in_range(0, 1)
+    waveform = samples.data                           # float32: (channels, samples)
+```
+
+Arrays keep their storage after the decoder closes. Paths, URLs, encoded bytes,
+1-D uint8 arrays and seekable file objects are supported.
+
+## Features
+
+| Capability | Supported |
+| --- | --- |
+| **Frame selection** | Indexing, slicing, batches, playback timestamps and FPS sampling |
+| **Seeking** | Exact by default; approximate mode and custom frame mappings |
+| **Video output** | NCHW / NHWC RGB; uint8, uint16 and float32 |
+| **Video fidelity** | High-bit-depth output, PQ/HLG signals and right-angle display rotation |
+| **Audio** | Time ranges, resampling and channel mixing; float32 output |
+| **Interoperability** | NumPy arrays, array interface and DLPack |
+
+For high-bit-depth video, use `VideoDecoder(path, output_dtype="auto")` to select
+float32 above 8 bits, or `output_dtype="uint16"` for full-range 16-bit RGB.
+HDR output retains PQ/HLG encoding without SDR tone mapping. Rotation is applied
+automatically, and metadata dimensions match the output.
 
 ## Package size
+
+**One decoder wheel, with FFmpeg included.** If your environment already has
+NumPy, that wheel is the only additional Python package you need.
+
+For CPU video and audio decoding:
+
+| Runtime footprint | TensorCodec | TorchCodec 0.17.0 |
+| --- | --- | --- |
+| Python packages | **TensorCodec + NumPy** | TorchCodec + PyTorch and its dependencies |
+| FFmpeg shared libraries | **Bundled in the wheel** | Separate installation |
+| Decoder output | NumPy arrays | PyTorch tensors |
+
+TensorCodec's wheel size includes its FFmpeg runtime. TorchCodec's excludes
+PyTorch and FFmpeg, so the standalone wheel sizes below are not complete
+installation sizes. Existing dependencies can be reused by either package.
+
+<details>
+<summary>Published wheel sizes and measurement details</summary>
 
 <!-- wheel-size:start -->
 Published PyPI Linux wheels, CPython 3.10: TensorCodec 0.1.1 / TorchCodec 0.17.0.
@@ -104,65 +99,39 @@ Published PyPI Linux wheels, CPython 3.10: TensorCodec 0.1.1 / TorchCodec 0.17.0
 | TorchCodec | aarch64 | 8.8 MB | 21.9 MB |
 <!-- wheel-size:end -->
 
-Sizes include everything inside each wheel; external dependencies are excluded.
-MB = 1,000,000 bytes. Unpacked size is the sum of archive entries, not filesystem
-usage or total environment size. The badge shows the largest published TensorCodec
-Linux wheel download.
+MB = 1,000,000 bytes. Download is the wheel archive; unpacked is the sum of its
+entries. Both exclude external dependencies. The badge shows the largest
+published TensorCodec Linux wheel. These are PyPI builds; PyTorch's CPU/CUDA
+indexes can provide different artifacts.
 
-| Runtime requirement | TensorCodec | TorchCodec 0.17.0 |
-| --- | --- | --- |
-| Python dependency | NumPy | PyTorch (install separately) |
-| FFmpeg shared libraries | Included, minimal FFmpeg 7 | Install separately |
-| Image codec libraries | No image API | Included |
+[Measurement and release policy](docs/package_size.md) · [Use an existing FFmpeg installation](docs/system_ffmpeg.md)
 
-TorchCodec's wheel alone is smaller in this comparison. TensorCodec's installation
-advantage is avoiding PyTorch and a separate FFmpeg setup, rather than the smallest
-standalone wheel. These are PyPI artifacts; PyTorch's separate CPU/CUDA indexes can
-provide different builds. This is a size comparison, not a feature or speed comparison.
+</details>
 
-Release limits per TensorCodec wheel: 15 MiB download / 35 MiB unpacked
-(1 MiB = 1,048,576 bytes). [Measurement and release policy](docs/package_size.md).
-For an existing FFmpeg installation, see the [source-build guide](docs/system_ffmpeg.md).
+## Scope and compatibility
 
-## Use
+TensorCodec targets TorchCodec 0.17.0's **CPU video/audio playback semantics**:
+frame selection, ordering, timestamps and audio ranges. Tests compare these
+against the pinned reference and independently generated media.
 
-```python
-from tensorcodec.decoders import VideoDecoder, AudioDecoder
+- **Wheels:** Linux x86_64 and ARM64, glibc 2.17+, CPython 3.10+; requires a compatible NumPy wheel.
+- **Scope:** CPU decoding. CUDA, images, encoders, clip samplers and decoder transforms are not implemented.
+- **Seeking cost:** exact mode scans packet timestamps on open; audio ranges decode from the beginning.
 
-with VideoDecoder("video.mp4") as video:
-    frame = video.get_frame_played_at(1.25)  # frame playing at this time
-    print(frame.data.shape)                 # CHW NumPy array
-    batch = video.get_frames_at([4, 0, 4])   # order and duplicates preserved
-    clip = video.get_frames_played_in_range(0, 1, fps=8)
-
-with AudioDecoder("audio.wav", sample_rate=16000, num_channels=1) as audio:
-    samples = audio.get_samples_played_in_range(0, 1)
-    print(samples.data.shape)               # channels × samples, float32
-```
-
-Decoded arrays keep their storage after the decoder closes. Input file objects
-remain caller-owned.
-
-Use `output_dtype="auto"` to preserve high-depth video as float32, or
-`output_dtype=np.uint16` for full-range 16-bit RGB. PQ/HLG output preserves the
-encoded signal; it is not tone mapped to SDR. Right-angle display rotation is
-applied automatically, and metadata dimensions match the output.
-
-## Implementation
-
-| Layer | Responsibility |
-| --- | --- |
-| Python | Public API, frame/time selection, validation, result objects |
-| Rust + PyO3 | FFmpeg handles, seeking/decoding, color conversion, resampling |
-| FFmpeg | Codec and container implementations |
-
-A batch crosses the Python/Rust boundary once. Native decoding releases the GIL.
+See the [compatibility contract](docs/compatibility.md) for pixel tolerances and
+API differences, and [container behavior](docs/container_robustness.md) for seek
+limitations. Measure performance on your workload with the [benchmark tools](benchmarks/README.md).
 
 ## Development and verification
 
+<details>
+<summary>Build from source and run tests</summary>
+
+Source builds require Rust, Clang/libclang, pkg-config and FFmpeg 7 development
+headers/libraries. Python handles API and playback selection; Rust + PyO3 handles
+FFmpeg. Each batch crosses the native boundary once, releasing the GIL during decoding.
+
 ```sh
-# Requires uv, Rust, Clang/libclang, pkg-config and FFmpeg 7 development libraries.
-# Build the editable package and install development + pinned CPU oracle groups.
 uv sync --group dev --group oracle
 
 uv run --group oracle pytest tests/test_video_contract.py tests/test_audio_contract.py --backend torchcodec
@@ -172,13 +141,11 @@ uv run --group oracle pytest --compare
 uv run --group oracle maturin develop --locked --uv
 ```
 
-Tests generate fixtures with FFmpeg/ffprobe and Python's `wave` module.
-`--compare` requires the exact oracle version; otherwise differential tests skip.
+Tests generate media with FFmpeg/ffprobe and Python's `wave` module.
+`--compare` requires the pinned oracle; differential tests otherwise skip.
 
-- [Benchmark guide](benchmarks/README.md)
-- [Container and seek behavior](docs/container_robustness.md)
-- [Playback rules](docs/playback_semantics.md)
-- [Release builds and PyPI publishing](docs/releasing.md)
-- [Native dependency licenses and source/build notices](licenses/README.md)
+[Playback rules](docs/playback_semantics.md) · [Release guide](docs/releasing.md) · [Dependency licenses](licenses/README.md)
 
-TensorCodec's own code is MIT licensed.
+</details>
+
+TensorCodec's own code is [MIT licensed](LICENSE).
