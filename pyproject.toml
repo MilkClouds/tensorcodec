@@ -44,6 +44,8 @@ include = [
     { path = "docs/system_ffmpeg.md", format = "sdist" },
     { path = "packaging/*.json", format = "sdist" },
     { path = "tests/*.py", format = "sdist" },
+    { path = "benchmarks/__init__.py", format = "sdist" },
+    { path = "benchmarks/open_cost.py", format = "sdist" },
 ]
 
 [tool.pytest.ini_options]
