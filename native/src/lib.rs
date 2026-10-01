@@ -60,50 +60,27 @@ impl Decoder {
             .map_err(ffmpeg::Error::into_py)
     }
 
-    #[pyo3(signature = (targets, output_dtype, exact, timestamps=None))]
     fn decode_video(
         &mut self,
         py: Python<'_>,
         targets: Vec<(i64, i64)>,
         output_dtype: &str,
         exact: bool,
-        timestamps: Option<Vec<f64>>,
     ) -> PyResult<(PyObject, Vec<f64>, Vec<f64>)> {
-        let inner = self.inner.as_mut().ok_or_else(closed)?;
-        let dtype = match output_dtype {
-            "native" => ffmpeg::OutputDtype::Native,
-            "uint8" => ffmpeg::OutputDtype::U8,
-            "uint16" => ffmpeg::OutputDtype::U16,
-            "float32" => ffmpeg::OutputDtype::F32,
-            _ => return Err(PyValueError::new_err("invalid video output dtype")),
-        };
-        let output = py
-            .allow_threads(|| inner.video(targets, dtype, exact, timestamps))
-            .map_err(ffmpeg::Error::into_py)?;
-        let shape = (
-            output.pts.len(),
-            output.height,
-            output.width,
-            output.channels,
-        );
-        let array = match output.pixels {
-            ffmpeg::Pixels::U8(data) => Array::from_shape_vec(shape, data)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
-                .into_pyarray(py)
-                .into_any()
-                .unbind(),
-            ffmpeg::Pixels::F32(data) => Array::from_shape_vec(shape, data)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
-                .into_pyarray(py)
-                .into_any()
-                .unbind(),
-            ffmpeg::Pixels::U16(data) => Array::from_shape_vec(shape, data)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
-                .into_pyarray(py)
-                .into_any()
-                .unbind(),
-        };
-        Ok((array, output.pts, output.durations))
+        self.video_request(
+            py,
+            ffmpeg::VideoRequest::Frames { targets, exact },
+            output_dtype,
+        )
+    }
+
+    fn decode_timestamps(
+        &mut self,
+        py: Python<'_>,
+        seconds: Vec<f64>,
+        output_dtype: &str,
+    ) -> PyResult<(PyObject, Vec<f64>, Vec<f64>)> {
+        self.video_request(py, ffmpeg::VideoRequest::Timestamps(seconds), output_dtype)
     }
 
     #[pyo3(signature = (sample_rate, channels, stop=None))]
@@ -151,4 +128,49 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<Decoder>()?;
     module.add("ffmpeg_version", ffmpeg::version())?;
     Ok(())
+}
+
+impl Decoder {
+    fn video_request(
+        &mut self,
+        py: Python<'_>,
+        request: ffmpeg::VideoRequest,
+        output_dtype: &str,
+    ) -> PyResult<(PyObject, Vec<f64>, Vec<f64>)> {
+        let inner = self.inner.as_mut().ok_or_else(closed)?;
+        let dtype = match output_dtype {
+            "native" => ffmpeg::OutputDtype::Native,
+            "uint8" => ffmpeg::OutputDtype::U8,
+            "uint16" => ffmpeg::OutputDtype::U16,
+            "float32" => ffmpeg::OutputDtype::F32,
+            _ => return Err(PyValueError::new_err("invalid video output dtype")),
+        };
+        let output = py
+            .allow_threads(|| inner.video(request, dtype))
+            .map_err(ffmpeg::Error::into_py)?;
+        let shape = (
+            output.pts.len(),
+            output.height,
+            output.width,
+            output.channels,
+        );
+        let array = match output.pixels {
+            ffmpeg::Pixels::U8(data) => Array::from_shape_vec(shape, data)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                .into_pyarray(py)
+                .into_any()
+                .unbind(),
+            ffmpeg::Pixels::F32(data) => Array::from_shape_vec(shape, data)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                .into_pyarray(py)
+                .into_any()
+                .unbind(),
+            ffmpeg::Pixels::U16(data) => Array::from_shape_vec(shape, data)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+                .into_pyarray(py)
+                .into_any()
+                .unbind(),
+        };
+        Ok((array, output.pts, output.durations))
+    }
 }

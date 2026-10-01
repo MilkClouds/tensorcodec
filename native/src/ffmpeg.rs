@@ -35,6 +35,19 @@ impl Drop for TimestampCursor {
     }
 }
 
+pub enum VideoRequest {
+    Frames {
+        targets: Vec<(i64, i64)>,
+        exact: bool,
+    },
+    Timestamps(Vec<f64>),
+}
+
+enum Selection {
+    Frame { pts: i64, key: i64, exact: bool },
+    Timestamp(f64),
+}
+
 pub struct Error(pub String, pub bool);
 impl Error {
     pub fn into_py(self) -> PyErr {
@@ -691,28 +704,72 @@ impl Decoder {
         Ok(())
     }
 
-    pub fn video(
+    fn indexed_frame(
         &mut self,
-        targets: Vec<(i64, i64)>,
-        dtype: OutputDtype,
+        target: i64,
+        key: i64,
         exact: bool,
-        timestamps: Option<Vec<f64>>,
-    ) -> Result<Video> {
+        active_key: &mut Option<i64>,
+    ) -> Result<()> {
+        if *active_key != Some(key) {
+            self.seek(key)?;
+            *active_key = Some(key);
+        }
+        let mut retried_from_beginning = false;
+        loop {
+            if !self.next()? {
+                return Err(failure(format!("no decoded frame at PTS {target}")));
+            }
+            let pts = self.frame_pts()?;
+            if pts < target {
+                continue;
+            }
+            if exact && pts != target {
+                if retried_from_beginning {
+                    return Err(failure(format!("no decoded frame at exact PTS {target}")));
+                }
+                self.seek(self.begin_pts())?;
+                *active_key = None;
+                retried_from_beginning = true;
+                continue;
+            }
+            // Approximate mode picks the first decoded frame at/after its estimated PTS.
+            return Ok(());
+        }
+    }
+
+    pub fn video(&mut self, request: VideoRequest, dtype: OutputDtype) -> Result<Video> {
         if self.audio {
             return Err(failure("cannot decode video from audio stream"));
         }
-        if let Some(ref times) = timestamps {
-            if times.len() != targets.len()
-                || times.iter().any(|t| !t.is_finite())
-                || times.windows(2).any(|w| w[0] >= w[1])
-                || targets
-                    .iter()
-                    .enumerate()
-                    .any(|(i, &(target, _))| target != i as i64)
-            {
-                return Err(failure("invalid timestamp query plan"));
+        let (length, requests, mut cursor) = match request {
+            VideoRequest::Frames { targets, exact } => {
+                let length = targets.len();
+                let mut grouped: BTreeMap<i64, (i64, Vec<usize>)> = BTreeMap::new();
+                for (i, (pts, key)) in targets.into_iter().enumerate() {
+                    grouped.entry(pts).or_insert((key, Vec::new())).1.push(i);
+                }
+                let requests: Vec<_> = grouped
+                    .into_iter()
+                    .map(|(pts, (key, positions))| {
+                        (Selection::Frame { pts, key, exact }, positions)
+                    })
+                    .collect();
+                (length, requests, None)
             }
-        }
+            VideoRequest::Timestamps(times) => {
+                if times.iter().any(|t| !t.is_finite()) || times.windows(2).any(|w| w[0] >= w[1]) {
+                    return Err(failure("timestamps must be finite, sorted and unique"));
+                }
+                let length = times.len();
+                let requests = times
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, t)| (Selection::Timestamp(t), vec![i]))
+                    .collect();
+                (length, requests, Some(TimestampCursor::new()?))
+            }
+        };
         let native = matches!(dtype, OutputDtype::Native);
         let (width, height, source_format) = self.video_layout;
         let (channels, dtype, big_endian) = if native {
@@ -740,7 +797,7 @@ impl Decoder {
             .and_then(|n| n.checked_mul(channels))
             .ok_or_else(|| failure("frame is too large"))?;
         let total = count
-            .checked_mul(targets.len())
+            .checked_mul(length)
             .ok_or_else(|| failure("batch is too large"))?;
         let mut pixels = vec![
             0u8;
@@ -749,185 +806,151 @@ impl Decoder {
                 .and_then(|n| n.checked_add(64))
                 .ok_or_else(|| failure("batch is too large"))?
         ];
-        let mut pts = vec![0.; targets.len()];
-        let mut durations = vec![0.; targets.len()];
-        let mut requests: BTreeMap<i64, (i64, Vec<usize>)> = BTreeMap::new();
-        for (i, (target, key)) in targets.into_iter().enumerate() {
-            requests
-                .entry(target)
-                .or_insert((key, Vec::new()))
-                .1
-                .push(i);
-        }
-        let mut cursor = if timestamps.is_some() {
-            Some(TimestampCursor::new()?)
-        } else {
-            None
-        };
+        let mut pts = vec![0.; length];
+        let mut durations = vec![0.; length];
         let mut active_key = None;
         let stride = count * if high_depth { 2 } else { 1 };
-        for (target, (key, positions)) in requests {
-            if timestamps.is_none() && active_key != Some(key) {
-                self.seek(key)?;
-                active_key = Some(key);
+        for (selection, positions) in requests {
+            match selection {
+                Selection::Frame { pts, key, exact } => {
+                    self.indexed_frame(pts, key, exact, &mut active_key)?
+                }
+                Selection::Timestamp(seconds) => {
+                    self.timestamp_frame(seconds, cursor.as_mut().unwrap())?
+                }
             }
-            let mut retried_from_beginning = false;
-            loop {
-                if let Some(ref times) = timestamps {
-                    self.timestamp_frame(times[target as usize], cursor.as_mut().unwrap())?;
-                } else if !self.next()? {
-                    return Err(failure(format!("no decoded frame at PTS {target}")));
+            let decoded_pts = self.frame_pts()?;
+            let first = positions[0];
+            unsafe {
+                let frame = &*self.frame;
+                if frame.width as usize != width || frame.height as usize != height {
+                    return Err(failure("dynamic frame dimensions are unsupported"));
                 }
-                let decoded_pts = self.frame_pts()?;
-                if timestamps.is_none() && decoded_pts < target {
-                    continue;
-                }
-                if timestamps.is_none() && exact && decoded_pts != target {
-                    if retried_from_beginning {
-                        return Err(failure(format!("no decoded frame at exact PTS {target}")));
+                let input_format: av::AVPixelFormat = std::mem::transmute(frame.format);
+                let output_frame = if native {
+                    if input_format != source_format {
+                        return Err(Error("pixel format changed within stream".into(), true));
                     }
-                    self.seek(self.begin_pts())?;
-                    active_key = None;
-                    retried_from_beginning = true;
-                    continue;
-                }
-                // Approximate mode intentionally picks the next decoded frame at/after target.
-                let first = positions[0];
-                unsafe {
-                    let frame = &*self.frame;
-                    if frame.width as usize != width || frame.height as usize != height {
-                        return Err(failure("dynamic frame dimensions are unsupported"));
-                    }
-                    let input_format: av::AVPixelFormat = std::mem::transmute(frame.format);
-                    let output_frame = if native {
-                        if input_format != source_format {
-                            return Err(Error("pixel format changed within stream".into(), true));
-                        }
-                        frame
+                    frame
+                } else {
+                    let output_format = if high_depth {
+                        av::AVPixelFormat::AV_PIX_FMT_RGB48LE
                     } else {
-                        let output_format = if high_depth {
-                            av::AVPixelFormat::AV_PIX_FMT_RGB48LE
-                        } else {
-                            av::AVPixelFormat::AV_PIX_FMT_RGB24
-                        };
-                        let config = (
+                        av::AVPixelFormat::AV_PIX_FMT_RGB24
+                    };
+                    let config = (
+                        frame.width,
+                        frame.height,
+                        input_format as i32,
+                        output_format as i32,
+                    );
+                    if self.scale_config != Some(config) {
+                        av::sws_freeContext(self.scale);
+                        self.scale = av::sws_getContext(
                             frame.width,
                             frame.height,
-                            input_format as i32,
-                            output_format as i32,
-                        );
-                        if self.scale_config != Some(config) {
-                            av::sws_freeContext(self.scale);
-                            self.scale = av::sws_getContext(
-                                frame.width,
-                                frame.height,
-                                input_format,
-                                frame.width,
-                                frame.height,
-                                output_format,
-                                0,
-                                ptr::null_mut(),
-                                ptr::null_mut(),
-                                ptr::null(),
-                            );
-                            self.scale_config = Some(config);
-                        }
-                        if self.scale.is_null() {
-                            return Err(failure("cannot initialize color conversion"));
-                        }
-                        let mut inverse = ptr::null_mut();
-                        let mut table = ptr::null_mut();
-                        let (
-                            mut source_range,
-                            mut destination_range,
-                            mut brightness,
-                            mut contrast,
-                            mut saturation,
-                        ) = (0, 0, 0, 0, 0);
-                        check(
-                            av::sws_getColorspaceDetails(
-                                self.scale,
-                                &mut inverse,
-                                &mut source_range,
-                                &mut table,
-                                &mut destination_range,
-                                &mut brightness,
-                                &mut contrast,
-                                &mut saturation,
-                            ),
-                            "read color conversion settings",
-                        )?;
-                        if frame.color_range != av::AVColorRange::AVCOL_RANGE_UNSPECIFIED {
-                            source_range =
-                                i32::from(frame.color_range == av::AVColorRange::AVCOL_RANGE_JPEG);
-                        }
-                        let coefficients = av::sws_getCoefficients(frame.colorspace as i32);
-                        check(
-                            av::sws_setColorspaceDetails(
-                                self.scale,
-                                coefficients,
-                                source_range,
-                                coefficients,
-                                destination_range,
-                                brightness,
-                                contrast,
-                                saturation,
-                            ),
-                            "configure color conversion",
-                        )?;
-                        if (*self.rgb_frame).width != frame.width
-                            || (*self.rgb_frame).height != frame.height
-                            || (*self.rgb_frame).format != output_format as i32
-                        {
-                            av::av_frame_unref(self.rgb_frame);
-                            (*self.rgb_frame).width = frame.width;
-                            (*self.rgb_frame).height = frame.height;
-                            (*self.rgb_frame).format = output_format as i32;
-                            check(
-                                av::av_frame_get_buffer(self.rgb_frame, 32),
-                                "allocate RGB frame",
-                            )?;
-                        }
-                        let rows = av::sws_scale(
-                            self.scale,
-                            frame.data.as_ptr() as *const *const u8,
-                            frame.linesize.as_ptr(),
-                            0,
+                            input_format,
+                            frame.width,
                             frame.height,
-                            (*self.rgb_frame).data.as_ptr(),
-                            (*self.rgb_frame).linesize.as_ptr(),
+                            output_format,
+                            0,
+                            ptr::null_mut(),
+                            ptr::null_mut(),
+                            ptr::null(),
                         );
-                        if rows != frame.height {
-                            return Err(failure("color conversion failed"));
-                        }
-                        &*self.rgb_frame
-                    };
-                    let row_bytes = width * channels * if high_depth { 2 } else { 1 };
-                    if output_frame.data[0].is_null()
-                        || (output_frame.linesize[0].unsigned_abs() as usize) < row_bytes
+                        self.scale_config = Some(config);
+                    }
+                    if self.scale.is_null() {
+                        return Err(failure("cannot initialize color conversion"));
+                    }
+                    let mut inverse = ptr::null_mut();
+                    let mut table = ptr::null_mut();
+                    let (
+                        mut source_range,
+                        mut destination_range,
+                        mut brightness,
+                        mut contrast,
+                        mut saturation,
+                    ) = (0, 0, 0, 0, 0);
+                    check(
+                        av::sws_getColorspaceDetails(
+                            self.scale,
+                            &mut inverse,
+                            &mut source_range,
+                            &mut table,
+                            &mut destination_range,
+                            &mut brightness,
+                            &mut contrast,
+                            &mut saturation,
+                        ),
+                        "read color conversion settings",
+                    )?;
+                    if frame.color_range != av::AVColorRange::AVCOL_RANGE_UNSPECIFIED {
+                        source_range =
+                            i32::from(frame.color_range == av::AVColorRange::AVCOL_RANGE_JPEG);
+                    }
+                    let coefficients = av::sws_getCoefficients(frame.colorspace as i32);
+                    check(
+                        av::sws_setColorspaceDetails(
+                            self.scale,
+                            coefficients,
+                            source_range,
+                            coefficients,
+                            destination_range,
+                            brightness,
+                            contrast,
+                            saturation,
+                        ),
+                        "configure color conversion",
+                    )?;
+                    if (*self.rgb_frame).width != frame.width
+                        || (*self.rgb_frame).height != frame.height
+                        || (*self.rgb_frame).format != output_format as i32
                     {
-                        return Err(failure("invalid decoded frame stride"));
+                        av::av_frame_unref(self.rgb_frame);
+                        (*self.rgb_frame).width = frame.width;
+                        (*self.rgb_frame).height = frame.height;
+                        (*self.rgb_frame).format = output_format as i32;
+                        check(
+                            av::av_frame_get_buffer(self.rgb_frame, 32),
+                            "allocate RGB frame",
+                        )?;
                     }
-                    for row in 0..height {
-                        ptr::copy_nonoverlapping(
-                            output_frame.data[0]
-                                .offset(row as isize * output_frame.linesize[0] as isize),
-                            pixels.as_mut_ptr().add(first * stride + row * row_bytes),
-                            row_bytes,
-                        );
+                    let rows = av::sws_scale(
+                        self.scale,
+                        frame.data.as_ptr() as *const *const u8,
+                        frame.linesize.as_ptr(),
+                        0,
+                        frame.height,
+                        (*self.rgb_frame).data.as_ptr(),
+                        (*self.rgb_frame).linesize.as_ptr(),
+                    );
+                    if rows != frame.height {
+                        return Err(failure("color conversion failed"));
                     }
-                    for &position in &positions {
-                        if position != first {
-                            pixels.copy_within(
-                                first * stride..(first + 1) * stride,
-                                position * stride,
-                            );
-                        }
-                        pts[position] = self.seconds(decoded_pts);
-                        durations[position] = self.seconds(frame.duration);
-                    }
+                    &*self.rgb_frame
+                };
+                let row_bytes = width * channels * if high_depth { 2 } else { 1 };
+                if output_frame.data[0].is_null()
+                    || (output_frame.linesize[0].unsigned_abs() as usize) < row_bytes
+                {
+                    return Err(failure("invalid decoded frame stride"));
                 }
-                break;
+                for row in 0..height {
+                    ptr::copy_nonoverlapping(
+                        output_frame.data[0]
+                            .offset(row as isize * output_frame.linesize[0] as isize),
+                        pixels.as_mut_ptr().add(first * stride + row * row_bytes),
+                        row_bytes,
+                    );
+                }
+                for &position in &positions {
+                    if position != first {
+                        pixels.copy_within(first * stride..(first + 1) * stride, position * stride);
+                    }
+                    pts[position] = self.seconds(decoded_pts);
+                    durations[position] = self.seconds(frame.duration);
+                }
             }
         }
         pixels.truncate(total * if high_depth { 2 } else { 1 });

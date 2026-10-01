@@ -344,11 +344,9 @@ class VideoDecoder(_Decoder):
                     raise ValueError("timestamps must be finite")
                 # Sorted unique queries share native lookahead; restore order and duplicates afterwards.
                 times, inverse = np.unique(values, return_inverse=True)
-                data, pts, durations = self._native.decode_video(
-                    [(i, i) for i in range(len(times))],
-                    "native" if self.output_format == "native" else self._dtype.name,
-                    False,
+                data, pts, durations = self._native.decode_timestamps(
                     times.tolist(),
+                    "native" if self.output_format == "native" else self._dtype.name,
                 )
                 return self._video_batch(data[inverse], np.asarray(pts)[inverse], np.asarray(durations)[inverse])
             return self.get_frames_at(self._indices_at_times(seconds))
