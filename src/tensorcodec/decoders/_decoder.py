@@ -14,6 +14,7 @@ import numpy as np
 from tensorcodec._frame import AudioSamples, Frame, FrameBatch
 from tensorcodec._metadata import AudioStreamMetadata, VideoStreamMetadata
 from tensorcodec._native import Decoder as NativeDecoder
+from tensorcodec.transforms import _pipeline
 
 
 def _source(source):
@@ -97,8 +98,9 @@ class VideoDecoder(_Decoder):
             raise ValueError("num_ffmpeg_threads must be a nonnegative integer")
         if device is not None and str(device) != "cpu":
             raise NotImplementedError("TensorCodec currently supports CPU decoding")
-        if transforms:
-            raise NotImplementedError("decoder transforms are not yet supported")
+        transforms = list(transforms or ())
+        if transforms and output_format == "native":
+            raise ValueError("transforms require RGB output")
         if custom_frame_mappings is not None and seek_mode != "exact":
             raise ValueError("custom_frame_mappings requires exact seeking")
         if output_format not in ("rgb", "native"):
@@ -136,6 +138,7 @@ class VideoDecoder(_Decoder):
             self._rotation_turns = turns % 4
             if self._rotation_turns % 2:
                 header["width"], header["height"] = header["height"], header["width"]
+            self._ops, _ = _pipeline(transforms, (header["height"], header["width"]), self._rotation_turns)
             if auto_dtype:
                 self._dtype = np.dtype(np.float32 if (header["bit_depth"] or 8) > 8 else np.uint8)
             if output_format == "native":
@@ -287,6 +290,7 @@ class VideoDecoder(_Decoder):
                 self._targets(indices),
                 "native" if self.output_format == "native" else self._dtype.name,
                 self._mappings is not None,
+                self._ops,
             )
             return self._video_batch(data, pts, durations)
 
@@ -347,6 +351,7 @@ class VideoDecoder(_Decoder):
                 data, pts, durations = self._native.decode_timestamps(
                     times.tolist(),
                     "native" if self.output_format == "native" else self._dtype.name,
+                    self._ops,
                 )
                 if np.array_equal(times, values):
                     return self._video_batch(data, pts, durations)

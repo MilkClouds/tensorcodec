@@ -60,6 +60,15 @@ with VideoDecoder("video.mkv", seek_mode="timestamp") as decoder:
     frames = decoder.get_frames_played_at([10.0, 10.1, 10.2])
 ```
 
+Decoder transforms resize and crop inside the decoder, as TorchCodec's do:
+
+```python
+from tensorcodec.transforms import CenterCrop, Resize
+
+with VideoDecoder("video.mp4", transforms=[Resize((256, 340)), CenterCrop((224, 224))]) as decoder:
+    frames = decoder.get_frames_at([0, 10])  # (2, 3, 224, 224)
+```
+
 This TensorCodec extension selects by actual PTS and retries seeks that overshoot.
 It supports time queries, including ranges with explicit `fps`, but not frame
 indices, `len(decoder)`, or `get_all_frames()`. See [the contract](docs/compatibility.md#timestamp-mode).
@@ -76,7 +85,7 @@ TensorCodec 0.1.4 relative to TorchCodec 0.17.0.
 | Image decoders | — | ✓ |
 | Video / audio / image encoders | — | ✓ |
 | Clip samplers | — | ✓ |
-| Decoder transforms | — | ✓ |
+| Decoder transforms | ✓ Resize, CenterCrop, RandomCrop | ✓ |
 
 FPS-based frame queries are supported; clip samplers are a separate API.
 

@@ -18,8 +18,14 @@ FFmpeg; arrays are returned as NumPy instead of torch.Tensor.
   Float32 RGB uses 16-bit color conversion rather than scaling uint8 output.
 - NCHW/NHWC, paths/URLs, encoded bytes, uint8 arrays and seekable file-like input.
 - Exact and approximate video seeking; exact is the default.
+- Decoder transforms (`tensorcodec.transforms`): `Resize` (bilinear, antialiased), `CenterCrop`
+  and `RandomCrop`, applied in order to RGB frames after display rotation, as TorchCodec does
+  (frames match TorchCodec 0.17.0 within one level). The TorchCodec and TorchVision v2
+  counterparts are accepted and converted; other transforms fail explicitly. `RandomCrop`
+  draws its position once per decoder from NumPy's global random state. Native output
+  takes no transforms.
 
-CUDA, torch inputs, torchvision transforms, HDR tone mapping, arbitrary-angle rotation,
+CUDA, torch inputs, HDR tone mapping, arbitrary-angle rotation,
 encoders and samplers are outside the
 initial CPU decoding contract. Unsupported device/transform options fail explicitly.
 Do not advertise full-package or torch.Tensor type compatibility.
