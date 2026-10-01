@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 libc = "0.2"
 pyo3 = { version = "0.23", features = ["abi3-py310"] }
 numpy = "0.23"
-ffmpeg-sys-next = { version = "7.1", default-features = false, features = ["avcodec", "avformat", "swscale", "swresample"] }
+ffmpeg-sys-next = { version = "9.0", default-features = false, features = ["avcodec", "avformat", "swscale", "swresample"] }
 
 [profile.release]
 lto = "thin"
