@@ -22,8 +22,8 @@ CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
   arrays instead of PyTorch tensors. PyTorch is not a dependency.
 - **Playback semantics.** Frame selection, ordering, timestamps and audio ranges
   are validated against TorchCodec 0.17.0 and independently generated media.
-- **Implementation.** Rust/PyO3 bindings to FFmpeg decode each frame batch in one
-  native call, releasing the GIL during decoding.
+- **Implementation.** Rust/PyO3 bindings to FFmpeg process frame batches in a
+  single native call, avoiding per-frame Python calls.
 - **Distribution.** Linux wheels are 10.7–10.9 MB (v0.1.1), including FFmpeg shared
   libraries. NumPy is the only Python dependency.
 
@@ -170,7 +170,8 @@ See [container behavior](docs/container_robustness.md) for seek limitations and
 
 Source builds require Rust, Clang/libclang, pkg-config and FFmpeg 7 development
 headers/libraries. Python handles API and playback selection; Rust + PyO3 handles
-FFmpeg. Each batch crosses the native boundary once, releasing the GIL during decoding.
+FFmpeg. Native decoding releases the GIL, allowing separate decoder instances to
+run concurrently across Python threads. Calls on the same instance are serialized.
 
 ```sh
 uv sync --group dev --group oracle
