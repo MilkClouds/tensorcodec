@@ -1105,8 +1105,12 @@ impl Decoder {
                     } else {
                         (width, height)
                     };
-                    let row = w as usize * pixel_bytes as usize;
-                    self.rotated.resize(row * h as usize, 0);
+                    // Aligned rows and trailing padding: swscale may read past a row's end.
+                    let row = (w as usize * pixel_bytes as usize).next_multiple_of(64);
+                    self.rotated.resize(
+                        row * h as usize + av::AV_INPUT_BUFFER_PADDING_SIZE as usize,
+                        0,
+                    );
                     for i in 0..h as isize {
                         for j in 0..w as isize {
                             let (y, x) = match turns {
