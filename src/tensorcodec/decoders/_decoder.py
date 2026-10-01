@@ -91,16 +91,16 @@ class VideoDecoder(_Decoder):
     ):
         if dimension_order not in ("NCHW", "NHWC"):
             raise ValueError("dimension_order must be NCHW or NHWC")
-        if seek_mode not in ("exact", "approximate"):
-            raise ValueError("seek_mode must be exact or approximate")
+        if seek_mode not in ("exact", "approximate", "timestamp"):
+            raise ValueError("seek_mode must be exact, approximate or timestamp")
         if not isinstance(num_ffmpeg_threads, numbers.Integral) or num_ffmpeg_threads < 0:
             raise ValueError("num_ffmpeg_threads must be a nonnegative integer")
         if device is not None and str(device) != "cpu":
             raise NotImplementedError("TensorCodec currently supports CPU decoding")
         if transforms:
             raise NotImplementedError("decoder transforms are not yet supported")
-        if custom_frame_mappings is not None and seek_mode == "approximate":
-            raise ValueError("custom_frame_mappings is incompatible with approximate seeking")
+        if custom_frame_mappings is not None and seek_mode != "exact":
+            raise ValueError("custom_frame_mappings requires exact seeking")
         if output_format not in ("rgb", "native"):
             raise ValueError("output_format must be 'rgb' or 'native'")
         if expected_pixel_format is not None and output_format != "native":
@@ -211,6 +211,13 @@ class VideoDecoder(_Decoder):
                 if is_key:
                     key = pts
                 self._key_pts.append(key)
+        elif self._seek_mode == "timestamp":
+            begin = header["begin_stream_seconds_from_header"]
+            duration = header["duration_seconds_from_header"]
+            end = begin + duration if begin is not None and duration is not None else None
+            count = None
+            average_fps = header["average_fps_from_header"]
+            content = (None, None, None)
         else:
             duration = header["duration_seconds_from_header"] or container_duration
             average_fps = header["average_fps_from_header"]
@@ -221,7 +228,7 @@ class VideoDecoder(_Decoder):
                 count = round(duration * average_fps)
             begin, end = 0.0, duration
             content = (None, None, None)
-        if count is None or end is None or average_fps is None:
+        if self._seek_mode != "timestamp" and (count is None or end is None or average_fps is None):
             raise ValueError("cannot determine frame count, timing or average fps")
         self.metadata = VideoStreamMetadata(
             **header,
@@ -235,7 +242,12 @@ class VideoDecoder(_Decoder):
             average_fps=average_fps,
         )
 
+    def _require_indices(self):
+        if self._seek_mode == "timestamp":
+            raise NotImplementedError("timestamp mode supports time queries only; use exact for frame indices")
+
     def __len__(self):
+        self._require_indices()
         return self.metadata.num_frames
 
     @property
@@ -243,6 +255,7 @@ class VideoDecoder(_Decoder):
         return CpuFallbackStatus()
 
     def _normalize_indices(self, indices):
+        self._require_indices()
         values = _vector(indices, np.int64)
         values = np.where(values < 0, values + len(self), values)
         if np.any((values < 0) | (values >= len(self))):
@@ -275,17 +288,20 @@ class VideoDecoder(_Decoder):
                 "native" if self.output_format == "native" else self._dtype.name,
                 self._mappings is not None,
             )
-            if self._rotation_turns:
-                # Copy to keep positive strides for consumers such as torch.from_numpy.
-                data = np.rot90(data, self._rotation_turns, axes=(1, 2)).copy()
-            if self._order == "NCHW":
-                data = data.transpose(0, 3, 1, 2)
-            return FrameBatch(
-                data,
-                np.asarray(pts, dtype=np.float64),
-                np.asarray(durations, dtype=np.float64),
-                self.metadata.pixel_format if self.output_format == "native" else None,
-            )
+            return self._video_batch(data, pts, durations)
+
+    def _video_batch(self, data, pts, durations):
+        if self._rotation_turns:
+            # Copy to keep positive strides for consumers such as torch.from_numpy.
+            data = np.rot90(data, self._rotation_turns, axes=(1, 2)).copy()
+        if self._order == "NCHW":
+            data = data.transpose(0, 3, 1, 2)
+        return FrameBatch(
+            data,
+            np.asarray(pts, dtype=np.float64),
+            np.asarray(durations, dtype=np.float64),
+            self.metadata.pixel_format if self.output_format == "native" else None,
+        )
 
     def get_frame_at(self, index):
         batch = self.get_frames_at([index])
@@ -322,10 +338,26 @@ class VideoDecoder(_Decoder):
     def get_frames_played_at(self, seconds):
         with self._lock:
             self._check_open()
+            if self._seek_mode == "timestamp":
+                values = _vector(seconds, np.float64)
+                if np.any(~np.isfinite(values)):
+                    raise ValueError("timestamps must be finite")
+                # Sorted unique queries share native lookahead; restore order and duplicates afterwards.
+                times, inverse = np.unique(values, return_inverse=True)
+                data, pts, durations = self._native.decode_video(
+                    [(i, i) for i in range(len(times))],
+                    "native" if self.output_format == "native" else self._dtype.name,
+                    False,
+                    times.tolist(),
+                )
+                return self._video_batch(data[inverse], np.asarray(pts)[inverse], np.asarray(durations)[inverse])
             return self.get_frames_at(self._indices_at_times(seconds))
 
     def get_frame_played_at(self, seconds):
-        if not self.metadata.begin_stream_seconds <= seconds < self.metadata.end_stream_seconds:
+        if (
+            self._seek_mode != "timestamp"
+            and not self.metadata.begin_stream_seconds <= seconds < self.metadata.end_stream_seconds
+        ):
             raise IndexError("timestamp is outside the stream")
         batch = self.get_frames_played_at([seconds])
         return Frame(batch.data[0], batch.pts_seconds[0], batch.duration_seconds[0], batch.pixel_format)
@@ -333,6 +365,16 @@ class VideoDecoder(_Decoder):
     def get_frames_played_in_range(self, start_seconds, stop_seconds, fps=None):
         with self._lock:
             self._check_open()
+            if self._seek_mode == "timestamp":
+                if fps is None:
+                    raise NotImplementedError("timestamp range queries require fps; use exact for all frames")
+                if not all(math.isfinite(v) for v in (start_seconds, stop_seconds, fps)) or fps <= 0:
+                    raise ValueError("range bounds must be finite and fps must be positive")
+                if stop_seconds < start_seconds:
+                    raise ValueError("start_seconds must be <= stop_seconds")
+                grid = start_seconds + np.arange(math.ceil((stop_seconds - start_seconds) * fps)) / fps
+                batch = self.get_frames_played_at(grid)
+                return FrameBatch(batch.data, grid, np.full(len(grid), 1 / fps), batch.pixel_format)
             if not start_seconds <= stop_seconds:
                 raise ValueError("start_seconds must be <= stop_seconds")
             if not self.metadata.begin_stream_seconds <= start_seconds < self.metadata.end_stream_seconds:
@@ -357,6 +399,7 @@ class VideoDecoder(_Decoder):
             return self.get_frames_in_range(start, stop)
 
     def get_all_frames(self, fps=None):
+        self._require_indices()
         return self.get_frames_played_in_range(
             self.metadata.begin_stream_seconds, self.metadata.end_stream_seconds, fps
         )

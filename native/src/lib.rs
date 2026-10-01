@@ -60,12 +60,14 @@ impl Decoder {
             .map_err(ffmpeg::Error::into_py)
     }
 
+    #[pyo3(signature = (targets, output_dtype, exact, timestamps=None))]
     fn decode_video(
         &mut self,
         py: Python<'_>,
         targets: Vec<(i64, i64)>,
         output_dtype: &str,
         exact: bool,
+        timestamps: Option<Vec<f64>>,
     ) -> PyResult<(PyObject, Vec<f64>, Vec<f64>)> {
         let inner = self.inner.as_mut().ok_or_else(closed)?;
         let dtype = match output_dtype {
@@ -76,7 +78,7 @@ impl Decoder {
             _ => return Err(PyValueError::new_err("invalid video output dtype")),
         };
         let output = py
-            .allow_threads(|| inner.video(targets, dtype, exact))
+            .allow_threads(|| inner.video(targets, dtype, exact, timestamps))
             .map_err(ffmpeg::Error::into_py)?;
         let shape = (
             output.pts.len(),

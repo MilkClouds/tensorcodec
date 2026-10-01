@@ -52,6 +52,17 @@ with AudioDecoder("audio.wav", sample_rate=16000, num_channels=1) as audio:
 Arrays keep their storage after the decoder closes. Paths, URLs, encoded bytes,
 1-D uint8 arrays and seekable file objects are supported.
 
+For time-based windows without an initial full packet scan (unreleased):
+
+```python
+with VideoDecoder("video.mkv", seek_mode="timestamp") as decoder:
+    frames = decoder.get_frames_played_at([10.0, 10.1, 10.2])
+```
+
+This TensorCodec extension selects by actual PTS and retries seeks that overshoot.
+It supports time queries, including ranges with explicit `fps`, but not frame
+indices, `len(decoder)`, or `get_all_frames()`. See [the contract](docs/compatibility.md#timestamp-mode).
+
 ## Features
 
 TensorCodec 0.1.3 relative to TorchCodec 0.17.0.

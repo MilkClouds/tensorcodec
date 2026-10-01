@@ -8,6 +8,33 @@ use std::collections::BTreeMap;
 use std::ffi::{c_void, CStr, CString};
 use std::ptr;
 
+// One reference holds either the selected frame or its lookahead; released on errors too.
+struct TimestampCursor {
+    frame: *mut av::AVFrame,
+    initialized: bool,
+    eof: bool,
+}
+impl TimestampCursor {
+    fn new() -> Result<Self> {
+        let frame = unsafe { av::av_frame_alloc() };
+        if frame.is_null() {
+            return Err(failure("cannot allocate lookahead frame"));
+        }
+        Ok(Self {
+            frame,
+            initialized: false,
+            eof: false,
+        })
+    }
+}
+impl Drop for TimestampCursor {
+    fn drop(&mut self) {
+        unsafe {
+            av::av_frame_free(&mut self.frame);
+        }
+    }
+}
+
 pub struct Error(pub String, pub bool);
 impl Error {
     pub fn into_py(self) -> PyErr {
@@ -572,14 +599,119 @@ impl Decoder {
         }
     }
 
+    fn seek_timestamp(&mut self, seconds: f64) -> Result<()> {
+        let begin = self.begin_pts();
+        let target = (seconds / av_time_base(self.time_base)).floor() as i64;
+        let mut seek_pts = target;
+        let mut backoff = (1. / av_time_base(self.time_base)).ceil().max(1.) as i64;
+        loop {
+            if self.seek(seek_pts).is_ok()
+                && self.next()?
+                && self.seconds(self.frame_pts()?) <= seconds
+            {
+                return Ok(());
+            }
+            if seek_pts <= begin {
+                return Err(failure("no frame at or before requested timestamp"));
+            }
+            seek_pts = if backoff == i64::MAX {
+                begin
+            } else {
+                target.saturating_sub(backoff).max(begin)
+            };
+            backoff = backoff.saturating_mul(2);
+        }
+    }
+
+    fn timestamp_frame(&mut self, seconds: f64, cursor: &mut TimestampCursor) -> Result<()> {
+        // A known later keyframe avoids decoding entire gaps between sparse requests.
+        let seek_forward = if cursor.initialized && !cursor.eof {
+            unsafe {
+                let pts = (seconds / av_time_base(self.time_base)).floor() as i64;
+                let index =
+                    av::av_index_search_timestamp(self.stream(), pts, av::AVSEEK_FLAG_BACKWARD);
+                let entry = av::avformat_index_get_entry(self.stream(), index);
+                !entry.is_null() && (*entry).timestamp > self.frame_pts()?
+            }
+        } else {
+            false
+        };
+        if !cursor.initialized || seek_forward {
+            self.seek_timestamp(seconds)?;
+            unsafe {
+                av::av_frame_unref(cursor.frame);
+            }
+            cursor.initialized = true;
+            cursor.eof = false;
+        } else if !cursor.eof {
+            let next_pts = unsafe {
+                if (*cursor.frame).pts != av::AV_NOPTS_VALUE {
+                    (*cursor.frame).pts
+                } else {
+                    (*cursor.frame).best_effort_timestamp
+                }
+            };
+            if self.seconds(next_pts) > seconds {
+                return Ok(());
+            }
+            std::mem::swap(&mut self.frame, &mut cursor.frame);
+        }
+        while !cursor.eof {
+            let previous_pts = self.frame_pts()?;
+            unsafe {
+                av::av_frame_unref(cursor.frame);
+                check(
+                    av::av_frame_ref(cursor.frame, self.frame),
+                    "retain playback frame",
+                )?;
+            }
+            if !self.next()? {
+                std::mem::swap(&mut self.frame, &mut cursor.frame);
+                cursor.eof = true;
+                break;
+            }
+            let next_pts = self.frame_pts()?;
+            if next_pts <= previous_pts {
+                return Err(failure(
+                    "timestamp mode requires strictly increasing frame PTS",
+                ));
+            }
+            if self.seconds(next_pts) > seconds {
+                std::mem::swap(&mut self.frame, &mut cursor.frame);
+                return Ok(());
+            }
+        }
+        let frame = unsafe { &*self.frame };
+        let end = self.seconds(self.frame_pts()?.saturating_add(frame.duration));
+        if frame.duration <= 0 || seconds >= end {
+            return Err(failure(
+                "timestamp exceeds final frame duration or duration is unknown",
+            ));
+        }
+        Ok(())
+    }
+
     pub fn video(
         &mut self,
         targets: Vec<(i64, i64)>,
         dtype: OutputDtype,
         exact: bool,
+        timestamps: Option<Vec<f64>>,
     ) -> Result<Video> {
         if self.audio {
             return Err(failure("cannot decode video from audio stream"));
+        }
+        if let Some(ref times) = timestamps {
+            if times.len() != targets.len()
+                || times.iter().any(|t| !t.is_finite())
+                || times.windows(2).any(|w| w[0] >= w[1])
+                || targets
+                    .iter()
+                    .enumerate()
+                    .any(|(i, &(target, _))| target != i as i64)
+            {
+                return Err(failure("invalid timestamp query plan"));
+            }
         }
         let native = matches!(dtype, OutputDtype::Native);
         let (width, height, source_format) = self.video_layout;
@@ -627,23 +759,30 @@ impl Decoder {
                 .1
                 .push(i);
         }
+        let mut cursor = if timestamps.is_some() {
+            Some(TimestampCursor::new()?)
+        } else {
+            None
+        };
         let mut active_key = None;
         let stride = count * if high_depth { 2 } else { 1 };
         for (target, (key, positions)) in requests {
-            if active_key != Some(key) {
+            if timestamps.is_none() && active_key != Some(key) {
                 self.seek(key)?;
                 active_key = Some(key);
             }
             let mut retried_from_beginning = false;
             loop {
-                if !self.next()? {
+                if let Some(ref times) = timestamps {
+                    self.timestamp_frame(times[target as usize], cursor.as_mut().unwrap())?;
+                } else if !self.next()? {
                     return Err(failure(format!("no decoded frame at PTS {target}")));
                 }
                 let decoded_pts = self.frame_pts()?;
-                if decoded_pts < target {
+                if timestamps.is_none() && decoded_pts < target {
                     continue;
                 }
-                if exact && decoded_pts != target {
+                if timestamps.is_none() && exact && decoded_pts != target {
                     if retried_from_beginning {
                         return Err(failure(format!("no decoded frame at exact PTS {target}")));
                     }
@@ -952,4 +1091,8 @@ pub struct Audio {
     pub data: Vec<f32>,
     pub samples: usize,
     pub pts: f64,
+}
+
+fn av_time_base(time_base: av::AVRational) -> f64 {
+    time_base.num as f64 / time_base.den as f64
 }
