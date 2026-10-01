@@ -1,21 +1,21 @@
 {
   "tensorcodec": {
-    "version": "0.1.2",
-    "source": "https://pypi.org/project/tensorcodec/0.1.2/",
+    "version": "0.1.3",
+    "source": "https://pypi.org/project/tensorcodec/0.1.3/",
     "wheels": [
       {
-        "filename": "tensorcodec-0.1.2-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
-        "download_bytes": 10701611,
-        "unpacked_bytes": 25891153,
-        "sha256": "a4cfbccc3b978965daf6a6d6d2a9c0908a08c7790c6f5ab18a53695da3c8b927",
-        "url": "https://files.pythonhosted.org/packages/64/41/0cacd0cfb360998dd16fb9c7e9cc17a492a73cd8665ba7789a223f080a67/tensorcodec-0.1.2-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
+        "filename": "tensorcodec-0.1.3-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+        "download_bytes": 10782792,
+        "unpacked_bytes": 26041676,
+        "sha256": "d63e20c28d664b98027536f1232a48a88202530a8d9510770446e63fd813064e",
+        "url": "https://files.pythonhosted.org/packages/69/55/77552e87d29b150188055aa900247d68f95324e9bcc57f8b4f209823d33e/tensorcodec-0.1.3-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl"
       },
       {
-        "filename": "tensorcodec-0.1.2-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
-        "download_bytes": 10905598,
-        "unpacked_bytes": 23998330,
-        "sha256": "5f68aa0d4a63617c56cfa21bb596cc3c5a6748f6edbea81f6318bd6b39636df6",
-        "url": "https://files.pythonhosted.org/packages/95/27/e0845ab6fd22d6c04a6458ba04265dc10603f52f806f344351ad11375939/tensorcodec-0.1.2-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
+        "filename": "tensorcodec-0.1.3-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl",
+        "download_bytes": 10986290,
+        "unpacked_bytes": 24132461,
+        "sha256": "402b13a6e5cb480359754a57cabaeec06b75aa6d2538a5371ea9f1fc809ff8bb",
+        "url": "https://files.pythonhosted.org/packages/3e/cf/82abeee6785fff909cdfbf26bb0d8b388db3cda1f9dfb92a30cdf2d6baee/tensorcodec-0.1.3-cp310-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl"
       }
     ]
   },

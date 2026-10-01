@@ -9,7 +9,7 @@ CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
 <a href="https://pypi.org/project/tensorcodec/"><img src="https://img.shields.io/pypi/v/tensorcodec" alt="PyPI"></a>
 <a href="https://pypi.org/project/tensorcodec/"><img src="https://img.shields.io/badge/Python-3.10%2B-blue" alt="Python"></a>
 <!-- wheel-size-badge:start -->
-<a href="#package-size"><img src="https://img.shields.io/badge/wheel-10.4%20MiB-blue" alt="Wheel download"></a>
+<a href="#package-size"><img src="https://img.shields.io/badge/wheel-10.5%20MiB-blue" alt="Wheel download"></a>
 <!-- wheel-size-badge:end -->
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="License: MIT"></a>
 </p>
@@ -107,7 +107,7 @@ Linux CPU wheels, Python 3.12. Download / unpacked size in MiB.
 
 | Package | x86_64 | ARM64 |
 | --- | ---: | ---: |
-| TensorCodec | 10.2 / 24.7 | 10.4 / 22.9 |
+| TensorCodec | 10.3 / 24.8 | 10.5 / 23.0 |
 | PyAV | 33.4 / 125.5 | 31.2 / 90.4 |
 | TorchCodec + PyTorch (CPU) | 196.7 / 704.7 | 160.3 / 585.7 |
 <!-- wheel-size:end -->
