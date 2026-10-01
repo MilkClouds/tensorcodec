@@ -30,7 +30,7 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: .native-deps
-          key: manylinux2014-${{ matrix.target }}-${{ hashFiles('scripts/build_openssl.sh', 'scripts/build_ffmpeg.sh') }}
+          key: manylinux2014-${{ matrix.target }}-${{ hashFiles('scripts/build_nasm.sh', 'scripts/build_openssl.sh', 'scripts/build_ffmpeg.sh') }}
       - name: Build portable Linux wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -45,8 +45,11 @@ jobs:
             export PKG_CONFIG_PATH="$prefix/openssl/lib/pkgconfig"
             export LD_LIBRARY_PATH="$prefix/openssl/lib:$prefix/ffmpeg/lib"
             if [ ! -f "$prefix/ffmpeg/lib/libavformat.so.61" ]; then
-              yum install -y perl perl-IPC-Cmd
-              if [ "$(uname -m)" = x86_64 ]; then yum install -y nasm; fi
+              yum install -y perl-core
+              if [ "$(uname -m)" = x86_64 ]; then
+                bash scripts/build_nasm.sh "$prefix/nasm"
+                export PATH="$prefix/nasm/bin:$PATH"
+              fi
               bash scripts/build_openssl.sh "$prefix/openssl"
               bash scripts/build_ffmpeg.sh "$prefix/ffmpeg"
             fi
