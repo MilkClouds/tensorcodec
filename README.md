@@ -1,5 +1,10 @@
 # TensorCodec
 
+[![CI](https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/tensorcodec)](https://pypi.org/project/tensorcodec/)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://pypi.org/project/tensorcodec/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+
 **TorchCodec-style video and audio decoding, without PyTorch.**
 
 - Use the CPU decoder API and playback rules of **TorchCodec 0.17.0**.
@@ -10,27 +15,40 @@ The goal is predictable frame selection, timestamps and audio ranges with a smal
 runtime dependency set. This is a **CPU decoding subset**, not the entire
 TorchCodec package. It does not promise a speedup over PyAV or TorchCodec.
 
-## What is available?
+## Scope compared with TorchCodec
 
-| Capability | TorchCodec 0.17.0 | TensorCodec 0.1.0 |
+TorchCodec includes **decoders and encoders**, plus sampling and transforms.
+TensorCodec currently implements the **CPU video/audio decoder subset**.
+
+| Module family | TorchCodec 0.17.0 | TensorCodec 0.1.0 |
 | --- | --- | --- |
-| Python runtime dependency | PyTorch | NumPy |
-| Output arrays | `torch.Tensor` | `numpy.ndarray`; array interface + DLPack |
-| Video index/slice/batch access | Supported | Supported |
-| Playback time/range access | Supported | Supported |
-| CFR, VFR, offset PTS, B-frames | Supported | Tested |
-| Request ordering and duplicates | Preserved | Preserved |
-| Exact / approximate seeking | Supported | Supported; exact is the default |
-| NCHW / NHWC RGB | Supported | Supported |
-| uint8 / float32 video | Supported | Supported for SDR |
-| FPS sampling, custom frame mappings | Supported | Supported |
-| Audio ranges, resampling, channel mixing | Supported | Supported; float32 output |
-| Paths, URLs, bytes, seekable file objects | Supported | Supported |
-| Encoded tensor input | `torch.Tensor` | 1-D uint8 NumPy arrays |
-| CUDA decoding | Supported | **Not implemented** |
-| Decoder transforms | Supported | **Not implemented** |
-| HDR inputs / display rotation | Supported | **Rejected explicitly** |
-| Other modules, including samplers/encoders | Available | **Outside the initial scope** |
+| **Decoders** · video | `VideoDecoder` | **Implemented** for CPU SDR video |
+| **Decoders** · audio | `AudioDecoder` | **Implemented** for CPU audio |
+| **Decoders** · images | Image decoding APIs | **Not implemented** |
+| **Encoders** · video / audio / images | Video, audio, JPEG and PNG encoders | **Not implemented** |
+| **Samplers** | Clip sampling APIs | **Not implemented**; decoder FPS queries are available |
+| **Transforms** | Decoder transforms | **Not implemented** |
+
+### Decoder compatibility
+
+| Area | Capability | TorchCodec 0.17.0 | TensorCodec 0.1.0 |
+| --- | --- | --- | --- |
+| **Video · selection** | Index, slice and batch access | Supported | Supported |
+| | Playback time and range access | Supported | Supported |
+| | Ordering and duplicates | Preserved | Preserved |
+| | Exact / approximate seeking | Supported | Supported; exact by default |
+| | FPS queries, custom frame mappings | Supported | Supported |
+| **Video · formats** | CFR, VFR, offset PTS, B-frames | Supported | Tested |
+| | NCHW / NHWC RGB | Supported | Supported |
+| | uint8 / float32 output | Supported | Supported for SDR |
+| | HDR transfer / display rotation | Supported | **Rejected explicitly** |
+| **Audio** | Ranges, resampling, channel mixing | Supported | Supported; float32 output |
+| **Input / output** | Paths, URLs, bytes, seekable files | Supported | Supported |
+| | Encoded array input | `torch.Tensor` | 1-D uint8 NumPy arrays |
+| | Decoded arrays | `torch.Tensor` | `numpy.ndarray`; array interface + DLPack |
+| **Execution** | CPU | Supported | Supported |
+| | CUDA | Supported | **Not implemented** |
+| | Python runtime dependency | PyTorch | NumPy |
 
 ### Compatibility means
 
@@ -56,9 +74,10 @@ Details and the tested scope: [compatibility contract](docs/compatibility.md).
 ## Install
 
 ```sh
-python -m pip install tensorcodec
+uv pip install tensorcodec
 ```
 
+Use an existing virtual environment, or create one with `uv venv` first.
 Linux wheels bundle shared FFmpeg libraries. Source builds need Rust, libclang
 and FFmpeg 7 development headers/libraries.
 
@@ -94,18 +113,15 @@ A batch crosses the Python/Rust boundary once. Native decoding releases the GIL.
 ## Development and verification
 
 ```sh
-# Requires Rust, Clang/libclang, pkg-config and FFmpeg 7 development libraries.
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install numpy pytest ruff 'maturin>=1.8,<2'
-maturin develop --locked
+# Requires uv, Rust, Clang/libclang, pkg-config and FFmpeg 7 development libraries.
+# Build the editable package and install development + pinned CPU oracle groups.
+uv sync --group dev --group oracle
 
-# Reference dependencies are for tests only.
-python -m pip install torch==2.14.1 torchcodec==0.17.0 \
-  --index-url https://download.pytorch.org/whl/cpu
-pytest tests/test_video_contract.py tests/test_audio_contract.py --backend torchcodec
-pytest --compare
+uv run --group oracle pytest tests/test_video_contract.py tests/test_audio_contract.py --backend torchcodec
+uv run --group oracle pytest --compare
+
+# Rebuild after changing Rust code.
+uv run --group oracle maturin develop --locked --uv
 ```
 
 Tests generate fixtures with FFmpeg/ffprobe and Python's `wave` module.
