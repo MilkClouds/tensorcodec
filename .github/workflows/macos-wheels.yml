@@ -27,7 +27,7 @@ jobs:
         with:
           pixi-version: v0.81.0
           run-install: false
-          global-environments: ffmpeg=7.1.1=gpl_*
+          global-environments: ffmpeg=8.1.2=gpl_*
           global-cache: true
       - name: Install build tools
         run: |

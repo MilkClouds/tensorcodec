@@ -8,6 +8,9 @@ use std::collections::BTreeMap;
 use std::ffi::{c_void, CStr, CString};
 use std::ptr;
 
+// A macro up to FFmpeg 7 and a SwsFlags enumerator from FFmpeg 8, with the same value.
+const SWS_BILINEAR: libc::c_int = 2;
+
 // One reference holds either the selected frame or its lookahead; released on errors too.
 struct TimestampCursor {
     frame: *mut av::AVFrame,
@@ -1168,7 +1171,7 @@ impl Decoder {
                             w,
                             h,
                             format,
-                            av::SWS_BILINEAR,
+                            SWS_BILINEAR,
                             ptr::null_mut(),
                             ptr::null_mut(),
                             ptr::null(),

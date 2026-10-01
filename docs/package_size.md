@@ -68,6 +68,6 @@ runtime ABI and codec configuration used by the release tests. A full conda-forg
 FFmpeg environment can include many additional codec, graphics and system packages;
 moving these outside the wheel does not necessarily reduce total installation size.
 
-Reusing an existing shared FFmpeg 7 installation is an advanced source-build option:
+Reusing an existing shared FFmpeg 8 installation is an advanced source-build option:
 [system FFmpeg guide](system_ffmpeg.md). FFmpeg CLI availability alone does not
 satisfy the native library requirement.

@@ -173,7 +173,7 @@ See [container behavior](docs/container_robustness.md) for seek limitations and
 <details>
 <summary>Build from source and run tests</summary>
 
-Source builds require Rust, Clang/libclang, pkg-config and FFmpeg 7 development
+Source builds require Rust, Clang/libclang, pkg-config and FFmpeg 8 development
 headers/libraries. Python handles API and playback selection; Rust + PyO3 handles
 FFmpeg. Native decoding releases the GIL, allowing separate decoder instances to
 run concurrently across Python threads. Calls on the same instance are serialized.

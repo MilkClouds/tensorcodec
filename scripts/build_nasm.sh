@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build-only assembler; manylinux2014's system NASM is too old for FFmpeg 7.
+# Build-only assembler; manylinux2014's system NASM is too old for FFmpeg.
 set -euo pipefail
 prefix="${1:?usage: build_nasm.sh ABSOLUTE_INSTALL_PREFIX}"
 version=2.16.03

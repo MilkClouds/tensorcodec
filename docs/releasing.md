@@ -3,7 +3,7 @@
 Release version: `0.1.5`. Distribution and import name: `tensorcodec`.
 Binary wheels target Linux x86_64 and ARM64 (aarch64), glibc 2.17+, CPython 3.10+.
 NumPy must also provide a compatible wheel for the selected Python/glibc pair.
-The wheel bundles shared FFmpeg 7.1.5 and OpenSSL 3.5.9 LTS; its only Python
+The wheel bundles shared FFmpeg 8.1.3 and OpenSSL 3.5.9 LTS; its only Python
 runtime dependency is NumPy. macOS 14+ ARM64 wheels bundle the same minimal
 runtime. Windows wheels are not provided.
 
@@ -50,9 +50,9 @@ and source links are recorded in `licenses/README.md`.
 
 ## CI versus release builds
 
-- Ordinary CI uses prebuilt conda-forge FFmpeg 7.1.1 through Pixi, including its
+- Ordinary CI uses prebuilt conda-forge FFmpeg 8.1.2 through Pixi, including its
   headers and shared libraries. It builds only the TensorCodec extension.
-- PyPI wheels use the smaller LGPL FFmpeg 7.1.5 build plus OpenSSL 3.5.9.
+- PyPI wheels use the smaller LGPL FFmpeg 8.1.3 build plus OpenSSL 3.5.9.
   Their native prefix is cached by architecture, glibc baseline and build-script
   checksums. This preserves the wheel's codec set, dependency size and licensing rather than bundling the full
   conda-forge dependency graph.

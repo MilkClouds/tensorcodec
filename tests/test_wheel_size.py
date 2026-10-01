@@ -20,7 +20,7 @@ def wheel(tmp_path, target="x86_64", library_bytes=1000):
     with ZipFile(path, "w", compression=ZIP_DEFLATED) as archive:
         archive.writestr("tensorcodec/", b"")
         archive.writestr("tensorcodec/__init__.py", b"# codec\n")
-        archive.writestr("tensorcodec.libs/libavcodec.so.61", b"x" * library_bytes)
+        archive.writestr("tensorcodec.libs/libavcodec.so.62", b"x" * library_bytes)
     return path
 
 
