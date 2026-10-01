@@ -64,7 +64,7 @@ enum Reader {
 }
 unsafe extern "C" fn read_memory(opaque: *mut c_void, buffer: *mut u8, size: i32) -> i32 {
     if size <= 0 {
-        return -22;
+        return av::AVERROR(libc::EINVAL);
     }
     let reader = &mut *(opaque as *mut Reader);
     let input = match reader {
@@ -121,13 +121,13 @@ unsafe extern "C" fn seek_memory(opaque: *mut c_void, offset: i64, whence: i32) 
         0 => 0,
         1 => input.position as i64,
         2 => input.data.len() as i64,
-        _ => return -22,
+        _ => return i64::from(av::AVERROR(libc::EINVAL)),
     };
     let Some(position) = base.checked_add(offset) else {
-        return -22;
+        return i64::from(av::AVERROR(libc::EINVAL));
     };
     if position < 0 || position > input.data.len() as i64 {
-        return -22;
+        return i64::from(av::AVERROR(libc::EINVAL));
     }
     input.position = position as usize;
     position
@@ -146,6 +146,7 @@ pub struct Decoder {
     index: i32,
     time_base: av::AVRational,
     audio: bool,
+    video_layout: (i32, i32, av::AVPixelFormat),
     draining: bool,
 }
 // SAFETY: all pointers are uniquely owned. PyO3's mutable borrow plus the Python
@@ -194,6 +195,7 @@ impl Decoder {
             index: 0,
             time_base: av::AVRational { num: 0, den: 1 },
             audio,
+            video_layout: (0, 0, av::AVPixelFormat::AV_PIX_FMT_NONE),
             draining: false,
         };
         unsafe {
@@ -276,6 +278,13 @@ impl Decoder {
             if (*params).codec_type != media_type {
                 return Err(Error("stream has the wrong media type".into(), true));
             }
+            if !audio {
+                this.video_layout = (
+                    (*params).width,
+                    (*params).height,
+                    std::mem::transmute::<i32, av::AVPixelFormat>((*params).format),
+                );
+            }
             this.time_base = (*stream).time_base;
             if this.time_base.den <= 0 || this.time_base.num <= 0 {
                 return Err(failure("invalid stream time base"));
@@ -336,7 +345,11 @@ impl Decoder {
         Ok(())
     }
 
-    pub fn metadata<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
+    pub fn metadata<'py>(
+        &self,
+        py: Python<'py>,
+        apply_rotation: bool,
+    ) -> PyResult<Bound<'py, PyDict>> {
         let data = PyDict::new(py);
         unsafe {
             let stream = &*self.stream();
@@ -448,7 +461,8 @@ impl Decoder {
                     params.nb_coded_side_data,
                     av::AVPacketSideDataType::AV_PKT_DATA_DISPLAYMATRIX,
                 );
-                let rotation = if !side_data.is_null() && (*side_data).size >= 36 {
+                let rotation = if apply_rotation && !side_data.is_null() && (*side_data).size >= 36
+                {
                     let matrix = (*side_data).data as *const i32;
                     let determinant = *matrix as f64 * *matrix.add(4) as f64
                         - *matrix.add(1) as f64 * *matrix.add(3) as f64;
@@ -513,7 +527,7 @@ impl Decoder {
                 if code == av::AVERROR_EOF {
                     return Ok(false);
                 }
-                if code != -11 {
+                if code != av::AVERROR(libc::EAGAIN) {
                     check(code, "receive decoded frame")?;
                 }
                 if self.draining {
@@ -567,12 +581,31 @@ impl Decoder {
         if self.audio {
             return Err(failure("cannot decode video from audio stream"));
         }
+        let native = matches!(dtype, OutputDtype::Native);
+        let (width, height, source_format) = self.video_layout;
+        let (channels, dtype, big_endian) = if native {
+            use av::AVPixelFormat::*;
+            match source_format {
+                AV_PIX_FMT_GRAY8 => (1, OutputDtype::U8, false),
+                AV_PIX_FMT_GRAY12LE | AV_PIX_FMT_GRAY16LE => (1, OutputDtype::U16, false),
+                AV_PIX_FMT_GRAY16BE => (1, OutputDtype::U16, true),
+                AV_PIX_FMT_RGB24 => (3, OutputDtype::U8, false),
+                AV_PIX_FMT_RGBA => (4, OutputDtype::U8, false),
+                _ => {
+                    return Err(Error(
+                        "native output does not support this pixel format".into(),
+                        true,
+                    ))
+                }
+            }
+        } else {
+            (3, dtype, false)
+        };
         let high_depth = !matches!(dtype, OutputDtype::U8);
-        let width = unsafe { (*self.codec).width } as usize;
-        let height = unsafe { (*self.codec).height } as usize;
+        let (width, height) = (width as usize, height as usize);
         let count = width
             .checked_mul(height)
-            .and_then(|n| n.checked_mul(3))
+            .and_then(|n| n.checked_mul(channels))
             .ok_or_else(|| failure("frame is too large"))?;
         let total = count
             .checked_mul(targets.len())
@@ -627,106 +660,119 @@ impl Decoder {
                         return Err(failure("dynamic frame dimensions are unsupported"));
                     }
                     let input_format: av::AVPixelFormat = std::mem::transmute(frame.format);
-                    let output_format = if high_depth {
-                        av::AVPixelFormat::AV_PIX_FMT_RGB48LE
+                    let output_frame = if native {
+                        if input_format != source_format {
+                            return Err(Error("pixel format changed within stream".into(), true));
+                        }
+                        frame
                     } else {
-                        av::AVPixelFormat::AV_PIX_FMT_RGB24
-                    };
-                    let config = (
-                        frame.width,
-                        frame.height,
-                        input_format as i32,
-                        output_format as i32,
-                    );
-                    if self.scale_config != Some(config) {
-                        av::sws_freeContext(self.scale);
-                        self.scale = av::sws_getContext(
+                        let output_format = if high_depth {
+                            av::AVPixelFormat::AV_PIX_FMT_RGB48LE
+                        } else {
+                            av::AVPixelFormat::AV_PIX_FMT_RGB24
+                        };
+                        let config = (
                             frame.width,
                             frame.height,
-                            input_format,
-                            frame.width,
-                            frame.height,
-                            output_format,
-                            0,
-                            ptr::null_mut(),
-                            ptr::null_mut(),
-                            ptr::null(),
+                            input_format as i32,
+                            output_format as i32,
                         );
-                        self.scale_config = Some(config);
-                    }
-                    if self.scale.is_null() {
-                        return Err(failure("cannot initialize color conversion"));
-                    }
-                    let mut inverse = ptr::null_mut();
-                    let mut table = ptr::null_mut();
-                    let (
-                        mut source_range,
-                        mut destination_range,
-                        mut brightness,
-                        mut contrast,
-                        mut saturation,
-                    ) = (0, 0, 0, 0, 0);
-                    check(
-                        av::sws_getColorspaceDetails(
-                            self.scale,
-                            &mut inverse,
-                            &mut source_range,
-                            &mut table,
-                            &mut destination_range,
-                            &mut brightness,
-                            &mut contrast,
-                            &mut saturation,
-                        ),
-                        "read color conversion settings",
-                    )?;
-                    if frame.color_range != av::AVColorRange::AVCOL_RANGE_UNSPECIFIED {
-                        source_range =
-                            i32::from(frame.color_range == av::AVColorRange::AVCOL_RANGE_JPEG);
-                    }
-                    let coefficients = av::sws_getCoefficients(frame.colorspace as i32);
-                    check(
-                        av::sws_setColorspaceDetails(
-                            self.scale,
-                            coefficients,
-                            source_range,
-                            coefficients,
-                            destination_range,
-                            brightness,
-                            contrast,
-                            saturation,
-                        ),
-                        "configure color conversion",
-                    )?;
-                    if (*self.rgb_frame).width != frame.width
-                        || (*self.rgb_frame).height != frame.height
-                        || (*self.rgb_frame).format != output_format as i32
-                    {
-                        av::av_frame_unref(self.rgb_frame);
-                        (*self.rgb_frame).width = frame.width;
-                        (*self.rgb_frame).height = frame.height;
-                        (*self.rgb_frame).format = output_format as i32;
+                        if self.scale_config != Some(config) {
+                            av::sws_freeContext(self.scale);
+                            self.scale = av::sws_getContext(
+                                frame.width,
+                                frame.height,
+                                input_format,
+                                frame.width,
+                                frame.height,
+                                output_format,
+                                0,
+                                ptr::null_mut(),
+                                ptr::null_mut(),
+                                ptr::null(),
+                            );
+                            self.scale_config = Some(config);
+                        }
+                        if self.scale.is_null() {
+                            return Err(failure("cannot initialize color conversion"));
+                        }
+                        let mut inverse = ptr::null_mut();
+                        let mut table = ptr::null_mut();
+                        let (
+                            mut source_range,
+                            mut destination_range,
+                            mut brightness,
+                            mut contrast,
+                            mut saturation,
+                        ) = (0, 0, 0, 0, 0);
                         check(
-                            av::av_frame_get_buffer(self.rgb_frame, 32),
-                            "allocate RGB frame",
+                            av::sws_getColorspaceDetails(
+                                self.scale,
+                                &mut inverse,
+                                &mut source_range,
+                                &mut table,
+                                &mut destination_range,
+                                &mut brightness,
+                                &mut contrast,
+                                &mut saturation,
+                            ),
+                            "read color conversion settings",
                         )?;
+                        if frame.color_range != av::AVColorRange::AVCOL_RANGE_UNSPECIFIED {
+                            source_range =
+                                i32::from(frame.color_range == av::AVColorRange::AVCOL_RANGE_JPEG);
+                        }
+                        let coefficients = av::sws_getCoefficients(frame.colorspace as i32);
+                        check(
+                            av::sws_setColorspaceDetails(
+                                self.scale,
+                                coefficients,
+                                source_range,
+                                coefficients,
+                                destination_range,
+                                brightness,
+                                contrast,
+                                saturation,
+                            ),
+                            "configure color conversion",
+                        )?;
+                        if (*self.rgb_frame).width != frame.width
+                            || (*self.rgb_frame).height != frame.height
+                            || (*self.rgb_frame).format != output_format as i32
+                        {
+                            av::av_frame_unref(self.rgb_frame);
+                            (*self.rgb_frame).width = frame.width;
+                            (*self.rgb_frame).height = frame.height;
+                            (*self.rgb_frame).format = output_format as i32;
+                            check(
+                                av::av_frame_get_buffer(self.rgb_frame, 32),
+                                "allocate RGB frame",
+                            )?;
+                        }
+                        let rows = av::sws_scale(
+                            self.scale,
+                            frame.data.as_ptr() as *const *const u8,
+                            frame.linesize.as_ptr(),
+                            0,
+                            frame.height,
+                            (*self.rgb_frame).data.as_ptr(),
+                            (*self.rgb_frame).linesize.as_ptr(),
+                        );
+                        if rows != frame.height {
+                            return Err(failure("color conversion failed"));
+                        }
+                        &*self.rgb_frame
+                    };
+                    let row_bytes = width * channels * if high_depth { 2 } else { 1 };
+                    if output_frame.data[0].is_null()
+                        || (output_frame.linesize[0].unsigned_abs() as usize) < row_bytes
+                    {
+                        return Err(failure("invalid decoded frame stride"));
                     }
-                    let rows = av::sws_scale(
-                        self.scale,
-                        frame.data.as_ptr() as *const *const u8,
-                        frame.linesize.as_ptr(),
-                        0,
-                        frame.height,
-                        (*self.rgb_frame).data.as_ptr(),
-                        (*self.rgb_frame).linesize.as_ptr(),
-                    );
-                    if rows != frame.height {
-                        return Err(failure("color conversion failed"));
-                    }
-                    let row_bytes = width * 3 * if high_depth { 2 } else { 1 };
                     for row in 0..height {
                         ptr::copy_nonoverlapping(
-                            (*self.rgb_frame).data[0]
-                                .add(row * (*self.rgb_frame).linesize[0] as usize),
+                            output_frame.data[0]
+                                .offset(row as isize * output_frame.linesize[0] as isize),
                             pixels.as_mut_ptr().add(first * stride + row * row_bytes),
                             row_bytes,
                         );
@@ -760,10 +806,17 @@ impl Decoder {
                     .as_chunks::<2>()
                     .0
                     .iter()
-                    .map(|p| u16::from_le_bytes(*p))
+                    .map(|p| {
+                        if big_endian {
+                            u16::from_be_bytes(*p)
+                        } else {
+                            u16::from_le_bytes(*p)
+                        }
+                    })
                     .collect(),
             ),
             OutputDtype::U8 => Pixels::U8(pixels),
+            OutputDtype::Native => unreachable!(),
         };
         Ok(Video {
             pixels,
@@ -771,6 +824,7 @@ impl Decoder {
             durations,
             width,
             height,
+            channels,
         })
     }
 
@@ -881,6 +935,7 @@ pub enum Pixels {
     F32(Vec<f32>),
 }
 pub enum OutputDtype {
+    Native,
     U8,
     U16,
     F32,
@@ -891,6 +946,7 @@ pub struct Video {
     pub durations: Vec<f64>,
     pub width: usize,
     pub height: usize,
+    pub channels: usize,
 }
 pub struct Audio {
     pub data: Vec<f32>,

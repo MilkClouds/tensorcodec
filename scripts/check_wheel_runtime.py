@@ -40,6 +40,38 @@ def generate(root: Path):
         audio.setparams((2, 2, 8000, 8000, "NONE", "not compressed"))
         audio.writeframes(samples.tobytes())
 
+    for fmt, channels, storage in [("gray12le", 1, "<u2"), ("gray16be", 1, ">u2"), ("rgba", 4, "u1")]:
+        values = np.arange(3 * 11 * 19 * channels).reshape(3, 11, 19, channels)
+        values = ((values * 7) % (4096 if fmt == "gray12le" else 65536)).astype(storage)
+        raw = root / f"{fmt}.raw"
+        raw.write_bytes(values.tobytes())
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                "-f",
+                "rawvideo",
+                "-pixel_format",
+                fmt,
+                "-video_size",
+                "19x11",
+                "-framerate",
+                "10",
+                "-i",
+                str(raw),
+                "-c:v",
+                "rawvideo",
+                "-pix_fmt",
+                fmt,
+                "-threads",
+                "1",
+                str(root / f"{fmt}.nut"),
+            ],
+            check=True,
+        )
+
 
 def check(root: Path):
     import numpy as np
@@ -64,6 +96,12 @@ def check(root: Path):
         expected = np.arange(1000, dtype=np.float32) / 32768
         np.testing.assert_allclose(audio.data[0], expected, atol=1e-7)
         np.testing.assert_allclose(audio.data[1], -expected, atol=1e-7)
+    for fmt, channels, storage in [("gray12le", 1, "<u2"), ("gray16be", 1, ">u2"), ("rgba", 4, "u1")]:
+        expected = np.frombuffer((root / f"{fmt}.raw").read_bytes(), dtype=storage).reshape(3, 11, 19, channels)
+        with VideoDecoder(root / f"{fmt}.nut", output_format="native") as decoder:
+            batch = decoder.get_frames_at([2, 0, 2])
+            assert batch.pixel_format == fmt and batch.data.dtype.isnative
+            np.testing.assert_array_equal(batch.data, expected[[2, 0, 2]].transpose(0, 3, 1, 2))
     print(f"Wheel decoding passed: Python {platform.python_version()}, {platform.machine()}, {platform.libc_ver()}")
 
 

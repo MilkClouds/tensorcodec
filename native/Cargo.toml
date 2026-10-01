@@ -9,6 +9,7 @@ name = "_native"
 crate-type = ["cdylib"]
 
 [dependencies]
+libc = "0.2"
 pyo3 = { version = "0.23", features = ["abi3-py310"] }
 numpy = "0.23"
 ffmpeg-sys-next = { version = "7.1", default-features = false, features = ["avcodec", "avformat", "swscale", "swresample"] }

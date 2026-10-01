@@ -75,3 +75,11 @@ The native extension build and playback contracts run against prebuilt FFmpeg
 no external FFmpeg library installation. Configuration-specific outputs can differ
 within the color-conversion tolerances described in the
 [compatibility contract](compatibility.md).
+
+## macOS wheels
+
+The source branch builds macOS 14+ wheels for Apple Silicon and Intel, bundling
+FFmpeg/OpenSSL with `delocate`. They are not part of the 0.1.2 release. CI tests
+the installed wheels and clean Python 3.10/3.13 environments. Developers can run
+`scripts/build_macos_wheel.sh` with Rust, Xcode tools, NASM, pkg-config, coreutils,
+maturin and delocate installed in their build environment.

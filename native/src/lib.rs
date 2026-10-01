@@ -46,8 +46,12 @@ impl Decoder {
         Ok(Self { inner: Some(inner) })
     }
 
-    fn metadata<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
-        self.inner.as_ref().ok_or_else(closed)?.metadata(py)
+    #[pyo3(signature = (apply_rotation=true))]
+    fn metadata<'py>(&self, py: Python<'py>, apply_rotation: bool) -> PyResult<Bound<'py, PyDict>> {
+        self.inner
+            .as_ref()
+            .ok_or_else(closed)?
+            .metadata(py, apply_rotation)
     }
 
     fn scan(&mut self, py: Python<'_>) -> PyResult<Vec<(i64, i64, bool)>> {
@@ -65,6 +69,7 @@ impl Decoder {
     ) -> PyResult<(PyObject, Vec<f64>, Vec<f64>)> {
         let inner = self.inner.as_mut().ok_or_else(closed)?;
         let dtype = match output_dtype {
+            "native" => ffmpeg::OutputDtype::Native,
             "uint8" => ffmpeg::OutputDtype::U8,
             "uint16" => ffmpeg::OutputDtype::U16,
             "float32" => ffmpeg::OutputDtype::F32,
@@ -73,7 +78,12 @@ impl Decoder {
         let output = py
             .allow_threads(|| inner.video(targets, dtype, exact))
             .map_err(ffmpeg::Error::into_py)?;
-        let shape = (output.pts.len(), output.height, output.width, 3);
+        let shape = (
+            output.pts.len(),
+            output.height,
+            output.width,
+            output.channels,
+        );
         let array = match output.pixels {
             ffmpeg::Pixels::U8(data) => Array::from_shape_vec(shape, data)
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))?

@@ -15,7 +15,7 @@ cd "$build_root/ffmpeg-${ffmpeg_version}"
   --enable-shared --disable-static --disable-autodetect \
   --disable-programs --disable-doc --disable-avdevice --disable-avfilter \
   --disable-postproc --disable-encoders --disable-muxers \
-  --enable-openssl --enable-version3
+  --enable-openssl --enable-version3 --enable-zlib
 make -j "${TENSORCODEC_BUILD_JOBS:-4}"
 make install
 mkdir -p "$prefix/share/licenses/ffmpeg"

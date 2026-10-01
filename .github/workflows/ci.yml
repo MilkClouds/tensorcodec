@@ -10,6 +10,8 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  macos:
+    uses: ./.github/workflows/macos-wheels.yml
   test:
     runs-on: ubuntu-24.04
     steps:
