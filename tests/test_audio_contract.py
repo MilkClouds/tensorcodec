@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from tests.conftest import as_numpy
+from tests.utils import as_numpy
 
 
 def test_all_samples(backend, audio):

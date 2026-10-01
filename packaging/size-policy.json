@@ -4,6 +4,11 @@
   "comparison": {
     "project": "torchcodec",
     "version": "0.17.0",
-    "python_tag": "cp310"
+    "python_tag": "cp312"
+  },
+  "pyav": {
+    "project": "av",
+    "version": "19.0.0",
+    "python_tag": "cp312"
   }
 }

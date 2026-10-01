@@ -3,7 +3,8 @@
 import numpy as np
 import pytest
 
-from tests.conftest import as_numpy, index_input, time_input
+from tensorcodec.decoders import VideoDecoder
+from tests.utils import as_numpy, index_input, run_ffmpeg, time_input
 
 
 def compare_batch(actual, expected):
@@ -94,3 +95,29 @@ def test_compressed_audio_differential(backend, oracle, compressed_audio):
         np.testing.assert_allclose(left.data, as_numpy(right.data), atol=1e-6, rtol=0)
         assert left.pts_seconds == pytest.approx(right.pts_seconds, abs=1e-12)
         assert left.duration_seconds == right.duration_seconds
+
+
+@pytest.mark.parametrize("dtype", ["uint8", "float32", "auto"])
+def test_precision_matches_pinned_oracle(precision_video, oracle, dtype):
+    import torch
+
+    path, _, _, _ = precision_video
+    with VideoDecoder(path, output_dtype=dtype) as actual:
+        expected = oracle.VideoDecoder(path, output_dtype=dtype if dtype == "auto" else getattr(torch, dtype))
+        left = actual.get_frames_at([2, 0, 2])
+        right = expected.get_frames_at([2, 0, 2])
+        assert left.data.dtype == right.data.numpy().dtype
+        tolerance = 1 if left.data.dtype == np.uint8 else 1 / 65535
+        np.testing.assert_allclose(left.data, right.data.numpy(), atol=tolerance, rtol=0)
+        np.testing.assert_allclose(left.pts_seconds, right.pts_seconds.numpy(), atol=1e-12, rtol=0)
+
+
+@pytest.mark.parametrize("angle", [90, 180, 270])
+def test_rotation_matches_pinned_oracle(rotation_source, tmp_path, oracle, angle):
+    path = tmp_path / "rotated.mp4"
+    run_ffmpeg("-display_rotation", angle, "-i", rotation_source, "-c", "copy", path)
+    with VideoDecoder(path) as actual:
+        expected = oracle.VideoDecoder(path)
+        assert actual.metadata.rotation == expected.metadata.rotation
+        assert (actual.metadata.width, actual.metadata.height) == (expected.metadata.width, expected.metadata.height)
+        np.testing.assert_allclose(actual[:], expected[:].numpy(), atol=1, rtol=0)

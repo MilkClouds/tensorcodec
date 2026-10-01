@@ -76,14 +76,14 @@ def replace_block(text: str, start: str, end: str, content: str) -> str:
 def comparison_table(snapshot: dict) -> str:
     lines = [
         (
-            f"Published PyPI Linux wheels, CPython 3.10: TensorCodec {snapshot['tensorcodec']['version']} / "
-            f"TorchCodec {snapshot['torchcodec']['version']}."
+            f"Published PyPI Linux wheels, CPython 3.12 (TensorCodec uses ABI3): TensorCodec {snapshot['tensorcodec']['version']} / "
+            f"TorchCodec {snapshot['torchcodec']['version']} / PyAV {snapshot['pyav']['version']}."
         ),
         "",
         "| Package | Architecture | Download | Unpacked |",
         "| --- | --- | ---: | ---: |",
     ]
-    for project, label in (("tensorcodec", "TensorCodec"), ("torchcodec", "TorchCodec")):
+    for project, label in (("tensorcodec", "TensorCodec"), ("torchcodec", "TorchCodec"), ("pyav", "PyAV")):
         for wheel in snapshot[project]["wheels"]:
             lines.append(
                 f"| {label} | {architecture(wheel['filename'])} | "
@@ -101,9 +101,11 @@ def main() -> None:
     args = parser.parse_args()
     policy = json.loads(args.policy.read_text())
     reference = policy["comparison"]
+    pyav = policy["pyav"]
     snapshot = {
         "tensorcodec": measure_release("tensorcodec", args.version, "cp310"),
         "torchcodec": measure_release(reference["project"], reference["version"], reference["python_tag"]),
+        "pyav": measure_release(pyav["project"], pyav["version"], pyav["python_tag"]),
     }
     failures = [message for wheel in snapshot["tensorcodec"]["wheels"] for message in check_sizes(wheel, policy)]
     if failures:

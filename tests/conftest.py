@@ -13,6 +13,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from tests.utils import probe_stream, run_ffmpeg
+
 
 def pytest_addoption(parser):
     parser.addoption("--backend", choices=("tensorcodec", "torchcodec"), default="tensorcodec")
@@ -38,14 +40,6 @@ def oracle(request):
     if not request.config.getoption("--compare"):
         pytest.skip("Differential tests require explicit --compare; CI always enables it")
     return _oracle()
-
-
-def run_ffmpeg(*args):
-    subprocess.run(
-        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *map(str, args)],
-        check=True,
-        capture_output=True,
-    )
 
 
 @dataclass(frozen=True)
@@ -176,28 +170,6 @@ def audio(tmp_path_factory):
     return path, samples.astype(np.float32) / 32768, rate
 
 
-def as_numpy(value):
-    if isinstance(value, np.ndarray):
-        return value
-    return value.numpy()
-
-
-def index_input(backend, values):
-    if backend.__name__.startswith("torchcodec"):
-        import torch
-
-        return torch.tensor(values, dtype=torch.int64)
-    return np.asarray(values, dtype=np.int64)
-
-
-def time_input(backend, values):
-    if backend.__name__.startswith("torchcodec"):
-        import torch
-
-        return torch.tensor(values, dtype=torch.float64)
-    return np.asarray(values, dtype=np.float64)
-
-
 @pytest.fixture(scope="session", params=("bt709", "bt2020nc"))
 def color_video(request, tmp_path_factory):
     path = tmp_path_factory.mktemp("color") / f"{request.param}.mp4"
@@ -232,4 +204,84 @@ def compressed_audio(request, audio, tmp_path_factory):
         / {"aac": "samples.m4a", "mp3": "samples.mp3", "flac": "samples.mka"}[request.param]
     )
     run_ffmpeg("-i", audio[0], "-c:a", request.param, path)
+    return path
+
+
+@pytest.fixture(
+    scope="session",
+    params=[
+        (8, "bt709", "tv"),
+        (10, "bt709", "tv"),
+        (10, "smpte2084", "tv"),
+        (12, "arib-std-b67", "tv"),
+        (16, "bt709", "tv"),
+        (8, "bt709", "pc"),
+        (10, "smpte2084", "pc"),
+    ],
+)
+def precision_video(request, tmp_path_factory):
+    depth, transfer, color_range = request.param
+    root = tmp_path_factory.mktemp("precision")
+    raw = root / "input.raw"
+    dtype = np.uint8 if depth == 8 else np.dtype("<u2")
+    low, high = (0, (1 << depth) - 1) if color_range == "pc" else (16 << (depth - 8), 235 << (depth - 8))
+    y = np.linspace(low, high, 32 * 24).reshape(24, 32).astype(dtype)
+    chroma_u = np.broadcast_to(np.linspace(3 << (depth - 3), 5 << (depth - 3), 32).astype(dtype), y.shape)
+    chroma_v = np.broadcast_to(np.linspace(5 << (depth - 3), 3 << (depth - 3), 24).astype(dtype)[:, None], y.shape)
+    frames = [np.stack([np.roll(y, i * 5, axis=1), chroma_u, chroma_v]) for i in range(3)]
+    raw.write_bytes(b"".join(frame.tobytes() for frame in frames))
+    pixel_format = "yuv444p" if depth == 8 else f"yuv444p{depth}le"
+    path = root / "video.mkv"
+    run_ffmpeg(
+        "-f",
+        "rawvideo",
+        "-pixel_format",
+        pixel_format,
+        "-video_size",
+        "32x24",
+        "-framerate",
+        "10",
+        "-i",
+        raw,
+        "-vf",
+        f"setparams=color_primaries=bt2020:color_trc={transfer}:colorspace=bt2020nc",
+        "-c:v",
+        "ffv1",
+        "-threads",
+        "1",
+        "-colorspace",
+        "bt2020nc",
+        "-color_primaries",
+        "bt2020",
+        "-color_trc",
+        transfer,
+        "-color_range",
+        color_range,
+        path,
+    )
+    stream = probe_stream(path)
+    assert stream["pix_fmt"] == pixel_format
+    assert stream["color_transfer"] == transfer
+    assert stream["color_primaries"] == "bt2020"
+    assert stream["color_range"] == color_range
+    return path, depth, transfer, color_range
+
+
+@pytest.fixture(scope="session")
+def rotation_source(tmp_path_factory):
+    root = tmp_path_factory.mktemp("rotation")
+    path = root / "source.mp4"
+    run_ffmpeg(
+        "-f",
+        "lavfi",
+        "-i",
+        "testsrc2=size=32x24:rate=10:duration=0.3",
+        "-c:v",
+        "libx264",
+        "-threads",
+        "1",
+        "-crf",
+        "0",
+        path,
+    )
     return path

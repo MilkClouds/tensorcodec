@@ -94,3 +94,19 @@ def test_measures_published_wheel_and_verifies_hash_and_size(tmp_path, monkeypat
         assert len(release["wheels"]) == 2
         assert all(wheel["unpacked_bytes"] == 5 for wheel in release["wheels"])
         assert release["wheels"][0]["sha256"] == items[0]["digests"]["sha256"]
+
+
+def test_published_comparison_includes_pyav_and_stays_in_sync():
+    import json
+
+    root = SCRIPTS.parent
+    snapshot = json.loads((root / "packaging/size-baseline.json").read_text())
+    policy = json.loads((root / "packaging/size-policy.json").read_text())
+    assert snapshot["pyav"]["version"] == policy["pyav"]["version"]
+    assert policy["pyav"]["python_tag"] == policy["comparison"]["python_tag"]
+    for project in ("torchcodec", "pyav"):
+        assert all(f"-{policy['comparison']['python_tag']}-" in w["filename"] for w in snapshot[project]["wheels"])
+    readme = (root / "README.md").read_text()
+    table = comparison.comparison_table(snapshot)
+    assert "PyAV" in table
+    assert comparison.replace_block(readme, comparison.START, comparison.END, table) == readme

@@ -5,7 +5,7 @@ import io
 import numpy as np
 import pytest
 
-from tests.conftest import as_numpy, index_input, time_input
+from tests.utils import as_numpy, index_input, time_input
 
 
 def open_video(backend, case, **kwargs):
