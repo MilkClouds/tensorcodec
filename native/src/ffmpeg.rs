@@ -614,9 +614,9 @@ impl Decoder {
 
     fn seek_timestamp(&mut self, seconds: f64) -> Result<()> {
         let begin = self.begin_pts();
-        let target = (seconds / av_time_base(self.time_base)).floor() as i64;
+        let target = (seconds / seconds_per_tick(self.time_base)).floor() as i64;
         let mut seek_pts = target;
-        let mut backoff = (1. / av_time_base(self.time_base)).ceil().max(1.) as i64;
+        let mut backoff = (1. / seconds_per_tick(self.time_base)).ceil().max(1.) as i64;
         loop {
             if self.seek(seek_pts).is_ok()
                 && self.next()?
@@ -640,7 +640,7 @@ impl Decoder {
         // A known later keyframe avoids decoding entire gaps between sparse requests.
         let seek_forward = if cursor.initialized && !cursor.eof {
             unsafe {
-                let pts = (seconds / av_time_base(self.time_base)).floor() as i64;
+                let pts = (seconds / seconds_per_tick(self.time_base)).floor() as i64;
                 let index =
                     av::av_index_search_timestamp(self.stream(), pts, av::AVSEEK_FLAG_BACKWARD);
                 let entry = av::avformat_index_get_entry(self.stream(), index);
@@ -1116,6 +1116,6 @@ pub struct Audio {
     pub pts: f64,
 }
 
-fn av_time_base(time_base: av::AVRational) -> f64 {
+fn seconds_per_tick(time_base: av::AVRational) -> f64 {
     time_base.num as f64 / time_base.den as f64
 }
