@@ -39,9 +39,10 @@ jobs:
         run: |
           prefix="$HOME/.pixi/envs/ffmpeg"
           test -f "$prefix/include/libavcodec/avcodec.h"
+          echo "$prefix/bin" >> "$GITHUB_PATH"
           echo "FFMPEG_DIR=$prefix" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=$prefix/lib" >> "$GITHUB_ENV"
-          ffmpeg -version
+          "$prefix/bin/ffmpeg" -version
       - name: Static checks
         run: |
           ruff check src/tensorcodec tests scripts/configure_oracle_ffmpeg.py
