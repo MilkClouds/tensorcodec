@@ -43,6 +43,40 @@ pub enum VideoRequest {
     Timestamps(Vec<f64>),
 }
 
+/// A geometric step on RGB frames; a rotation (counterclockwise quarter turns) comes first, then
+/// crops and resizes in the rotated frame's coordinates.
+#[derive(Clone, Copy, PartialEq)]
+pub enum Op {
+    Rotate {
+        turns: i32,
+    },
+    Crop {
+        top: i32,
+        left: i32,
+        height: i32,
+        width: i32,
+    },
+    Resize {
+        height: i32,
+        width: i32,
+    },
+}
+
+/// One resize step's swscale context (bilinear, RGB to RGB at the same depth) and its output frame.
+struct Resizer {
+    scale: *mut av::SwsContext,
+    config: (i32, i32, i32, i32, i32),
+    frame: *mut av::AVFrame,
+}
+impl Drop for Resizer {
+    fn drop(&mut self) {
+        unsafe {
+            av::sws_freeContext(self.scale);
+            av::av_frame_free(&mut self.frame);
+        }
+    }
+}
+
 enum Selection {
     Frame { pts: i64, key: i64, exact: bool },
     Timestamp(f64),
@@ -181,6 +215,8 @@ pub struct Decoder {
     rgb_frame: *mut av::AVFrame,
     scale: *mut av::SwsContext,
     scale_config: Option<(i32, i32, i32, i32)>,
+    resizers: Vec<Resizer>,
+    rotated: Vec<u8>,
     io: *mut av::AVIOContext,
     memory: Option<Box<Reader>>,
     index: i32,
@@ -198,6 +234,7 @@ unsafe impl Sync for Decoder {}
 impl Drop for Decoder {
     fn drop(&mut self) {
         unsafe {
+            self.resizers.clear();
             av::sws_freeContext(self.scale);
             av::av_frame_free(&mut self.frame);
             av::av_frame_free(&mut self.rgb_frame);
@@ -230,6 +267,8 @@ impl Decoder {
             rgb_frame: ptr::null_mut(),
             scale: ptr::null_mut(),
             scale_config: None,
+            resizers: Vec::new(),
+            rotated: Vec::new(),
             io: ptr::null_mut(),
             memory: None,
             index: 0,
@@ -738,9 +777,17 @@ impl Decoder {
         }
     }
 
-    pub fn video(&mut self, request: VideoRequest, dtype: OutputDtype) -> Result<Video> {
+    pub fn video(
+        &mut self,
+        request: VideoRequest,
+        dtype: OutputDtype,
+        ops: &[Op],
+    ) -> Result<Video> {
         if self.audio {
             return Err(failure("cannot decode video from audio stream"));
+        }
+        if !ops.is_empty() && matches!(dtype, OutputDtype::Native) {
+            return Err(Error("transforms require RGB output".into(), true));
         }
         let (length, requests, mut cursor) = match request {
             VideoRequest::Frames { targets, exact } => {
@@ -791,6 +838,42 @@ impl Decoder {
             (3, dtype, false)
         };
         let high_depth = !matches!(dtype, OutputDtype::U8);
+        let (mut width, mut height) = (width, height);
+        for op in ops {
+            match *op {
+                Op::Rotate { turns } => {
+                    if turns % 2 == 1 {
+                        (width, height) = (height, width);
+                    }
+                }
+                Op::Crop {
+                    top,
+                    left,
+                    height: h,
+                    width: w,
+                } => {
+                    if top < 0
+                        || left < 0
+                        || h <= 0
+                        || w <= 0
+                        || top + h > height
+                        || left + w > width
+                    {
+                        return Err(Error("crop exceeds the frame".into(), true));
+                    }
+                    (width, height) = (w, h);
+                }
+                Op::Resize {
+                    height: h,
+                    width: w,
+                } => {
+                    if h <= 0 || w <= 0 {
+                        return Err(Error("resize size must be positive".into(), true));
+                    }
+                    (width, height) = (w, h);
+                }
+            }
+        }
         let (width, height) = (width as usize, height as usize);
         let count = width
             .checked_mul(height)
@@ -823,7 +906,7 @@ impl Decoder {
             let first = positions[0];
             unsafe {
                 let frame = &*self.frame;
-                if frame.width as usize != width || frame.height as usize != height {
+                if (frame.width, frame.height) != (self.video_layout.0, self.video_layout.1) {
                     return Err(failure("dynamic frame dimensions are unsupported"));
                 }
                 let input_format: av::AVPixelFormat = std::mem::transmute(frame.format);
@@ -930,16 +1013,23 @@ impl Decoder {
                     }
                     &*self.rgb_frame
                 };
+                let (data, linesize) = if ops.is_empty() {
+                    (output_frame.data[0] as *const u8, output_frame.linesize[0])
+                } else {
+                    let format = if high_depth {
+                        av::AVPixelFormat::AV_PIX_FMT_RGB48LE
+                    } else {
+                        av::AVPixelFormat::AV_PIX_FMT_RGB24
+                    };
+                    self.transform(output_frame, format, ops)?
+                };
                 let row_bytes = width * channels * if high_depth { 2 } else { 1 };
-                if output_frame.data[0].is_null()
-                    || (output_frame.linesize[0].unsigned_abs() as usize) < row_bytes
-                {
+                if data.is_null() || (linesize.unsigned_abs() as usize) < row_bytes {
                     return Err(failure("invalid decoded frame stride"));
                 }
                 for row in 0..height {
                     ptr::copy_nonoverlapping(
-                        output_frame.data[0]
-                            .offset(row as isize * output_frame.linesize[0] as isize),
+                        data.offset(row as isize * linesize as isize),
                         pixels.as_mut_ptr().add(first * stride + row * row_bytes),
                         row_bytes,
                     );
@@ -988,6 +1078,136 @@ impl Decoder {
             height,
             channels,
         })
+    }
+
+    /// Applies `ops` to an RGB frame: a crop moves the view, a resize scales it into its own frame.
+    /// Returns the result's first row and stride.
+    unsafe fn transform(
+        &mut self,
+        frame: &av::AVFrame,
+        format: av::AVPixelFormat,
+        ops: &[Op],
+    ) -> Result<(*const u8, i32)> {
+        let pixel_bytes: isize = if format == av::AVPixelFormat::AV_PIX_FMT_RGB24 {
+            3
+        } else {
+            6
+        };
+        let (mut data, mut linesize) = (frame.data[0] as *const u8, frame.linesize[0]);
+        let (mut width, mut height) = (frame.width, frame.height);
+        let mut resize = 0;
+        for op in ops {
+            match *op {
+                Op::Rotate { turns } => {
+                    // As NumPy's rot90 over (height, width): `turns` counterclockwise quarter turns.
+                    let (w, h) = if turns % 2 == 1 {
+                        (height, width)
+                    } else {
+                        (width, height)
+                    };
+                    // Aligned rows and trailing padding: swscale may read past a row's end.
+                    let row = (w as usize * pixel_bytes as usize).next_multiple_of(64);
+                    self.rotated.resize(
+                        row * h as usize + av::AV_INPUT_BUFFER_PADDING_SIZE as usize,
+                        0,
+                    );
+                    for i in 0..h as isize {
+                        for j in 0..w as isize {
+                            let (y, x) = match turns {
+                                1 => (j, width as isize - 1 - i),
+                                2 => (height as isize - 1 - i, width as isize - 1 - j),
+                                3 => (height as isize - 1 - j, i),
+                                _ => (i, j),
+                            };
+                            ptr::copy_nonoverlapping(
+                                data.offset(y * linesize as isize + x * pixel_bytes),
+                                self.rotated
+                                    .as_mut_ptr()
+                                    .offset(i * row as isize + j * pixel_bytes),
+                                pixel_bytes as usize,
+                            );
+                        }
+                    }
+                    data = self.rotated.as_ptr();
+                    linesize = row as i32;
+                    (width, height) = (w, h);
+                }
+                Op::Crop {
+                    top,
+                    left,
+                    height: h,
+                    width: w,
+                } => {
+                    data =
+                        data.offset(top as isize * linesize as isize + left as isize * pixel_bytes);
+                    (width, height) = (w, h);
+                }
+                Op::Resize {
+                    height: h,
+                    width: w,
+                } => {
+                    let config = (width, height, w, h, format as i32);
+                    if self.resizers.len() <= resize {
+                        let frame = av::av_frame_alloc();
+                        if frame.is_null() {
+                            return Err(failure("cannot allocate resize frame"));
+                        }
+                        self.resizers.push(Resizer {
+                            scale: ptr::null_mut(),
+                            config: (0, 0, 0, 0, 0),
+                            frame,
+                        });
+                    }
+                    let resizer = &mut self.resizers[resize];
+                    if resizer.scale.is_null() || resizer.config != config {
+                        av::sws_freeContext(resizer.scale);
+                        resizer.scale = av::sws_getContext(
+                            width,
+                            height,
+                            format,
+                            w,
+                            h,
+                            format,
+                            av::SWS_BILINEAR,
+                            ptr::null_mut(),
+                            ptr::null_mut(),
+                            ptr::null(),
+                        );
+                        if resizer.scale.is_null() {
+                            return Err(failure("cannot initialize resize"));
+                        }
+                        resizer.config = config;
+                        av::av_frame_unref(resizer.frame);
+                        (*resizer.frame).width = w;
+                        (*resizer.frame).height = h;
+                        (*resizer.frame).format = format as i32;
+                        check(
+                            av::av_frame_get_buffer(resizer.frame, 32),
+                            "allocate resize frame",
+                        )?;
+                    }
+                    let source = [data, ptr::null(), ptr::null(), ptr::null()];
+                    let strides = [linesize, 0, 0, 0];
+                    let rows = av::sws_scale(
+                        resizer.scale,
+                        source.as_ptr(),
+                        strides.as_ptr(),
+                        0,
+                        height,
+                        (*resizer.frame).data.as_ptr(),
+                        (*resizer.frame).linesize.as_ptr(),
+                    );
+                    if rows != h {
+                        return Err(failure("resize failed"));
+                    }
+                    data = (*resizer.frame).data[0];
+                    linesize = (*resizer.frame).linesize[0];
+                    (width, height) = (w, h);
+                    resize += 1;
+                }
+            }
+        }
+        Ok((data, linesize))
     }
 
     pub fn audio(&mut self, rate: i32, channels: i32, stop: Option<f64>) -> Result<Audio> {

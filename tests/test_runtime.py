@@ -70,9 +70,10 @@ assert not {'torch', 'torchcodec', 'av'}.intersection(sys.modules)
 
 
 def test_unsupported_options_are_explicit(tensorcodec, videos):
-    for kwargs in ({"device": "cuda"}, {"transforms": [object()]}):
-        with pytest.raises(NotImplementedError):
-            tensorcodec.decoders.VideoDecoder(videos["cfr"].path, **kwargs)
+    with pytest.raises(NotImplementedError):
+        tensorcodec.decoders.VideoDecoder(videos["cfr"].path, device="cuda")
+    with pytest.raises(ValueError, match="Unsupported transform"):
+        tensorcodec.decoders.VideoDecoder(videos["cfr"].path, transforms=[object()])
 
 
 def test_file_like_is_read_on_demand_and_remains_owned_by_caller(tensorcodec, videos):

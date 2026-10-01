@@ -60,27 +60,37 @@ impl Decoder {
             .map_err(ffmpeg::Error::into_py)
     }
 
+    #[pyo3(signature = (targets, output_dtype, exact, transforms=Vec::new()))]
     fn decode_video(
         &mut self,
         py: Python<'_>,
         targets: Vec<(i64, i64)>,
         output_dtype: &str,
         exact: bool,
+        transforms: Vec<(String, i32, i32, i32, i32)>,
     ) -> PyResult<(PyObject, Vec<f64>, Vec<f64>)> {
         self.video_request(
             py,
             ffmpeg::VideoRequest::Frames { targets, exact },
             output_dtype,
+            transforms,
         )
     }
 
+    #[pyo3(signature = (seconds, output_dtype, transforms=Vec::new()))]
     fn decode_timestamps(
         &mut self,
         py: Python<'_>,
         seconds: Vec<f64>,
         output_dtype: &str,
+        transforms: Vec<(String, i32, i32, i32, i32)>,
     ) -> PyResult<(PyObject, Vec<f64>, Vec<f64>)> {
-        self.video_request(py, ffmpeg::VideoRequest::Timestamps(seconds), output_dtype)
+        self.video_request(
+            py,
+            ffmpeg::VideoRequest::Timestamps(seconds),
+            output_dtype,
+            transforms,
+        )
     }
 
     #[pyo3(signature = (sample_rate, channels, stop=None))]
@@ -136,8 +146,26 @@ impl Decoder {
         py: Python<'_>,
         request: ffmpeg::VideoRequest,
         output_dtype: &str,
+        transforms: Vec<(String, i32, i32, i32, i32)>,
     ) -> PyResult<(PyObject, Vec<f64>, Vec<f64>)> {
         let inner = self.inner.as_mut().ok_or_else(closed)?;
+        // ("rotate", turns, ..), ("crop", top, left, height, width) or ("resize", _, _, height, width)
+        let ops = transforms
+            .into_iter()
+            .map(|(kind, a, b, height, width)| match kind.as_str() {
+                "crop" => Ok(ffmpeg::Op::Crop {
+                    top: a,
+                    left: b,
+                    height,
+                    width,
+                }),
+                "resize" => Ok(ffmpeg::Op::Resize { height, width }),
+                "rotate" => Ok(ffmpeg::Op::Rotate {
+                    turns: a.rem_euclid(4),
+                }),
+                _ => Err(PyValueError::new_err("invalid transform")),
+            })
+            .collect::<PyResult<Vec<_>>>()?;
         let dtype = match output_dtype {
             "native" => ffmpeg::OutputDtype::Native,
             "uint8" => ffmpeg::OutputDtype::U8,
@@ -146,7 +174,7 @@ impl Decoder {
             _ => return Err(PyValueError::new_err("invalid video output dtype")),
         };
         let output = py
-            .allow_threads(|| inner.video(request, dtype))
+            .allow_threads(|| inner.video(request, dtype, &ops))
             .map_err(ffmpeg::Error::into_py)?;
         let shape = (
             output.pts.len(),

@@ -1,7 +1,7 @@
 """Audio/video decoding into NumPy arrays; no torch or PyAV runtime dependency."""
 
-from tensorcodec import decoders
+from tensorcodec import decoders, transforms
 from tensorcodec._frame import AudioSamples, Frame, FrameBatch
 
 __version__ = "0.1.4"
-__all__ = ["AudioSamples", "Frame", "FrameBatch", "decoders"]
+__all__ = ["AudioSamples", "Frame", "FrameBatch", "decoders", "transforms"]
