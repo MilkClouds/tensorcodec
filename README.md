@@ -7,9 +7,9 @@
 
 **TorchCodec-style video and audio decoding, without PyTorch.**
 
-- Use the CPU decoder API and playback rules of **TorchCodec 0.17.0**.
-- Get **NumPy arrays** instead of `torch.Tensor`.
-- Install **NumPy + TensorCodec**. No Torch, PyAV, or FFmpeg CLI at runtime.
+- Use the CPU decoder API and playback rules of TorchCodec 0.17.0.
+- Get NumPy arrays instead of `torch.Tensor`.
+- Install NumPy + TensorCodec. No Torch, PyAV, or FFmpeg CLI at runtime.
 
 The goal is predictable frame selection, timestamps and audio ranges with a small
 runtime dependency set. This is a **CPU decoding subset**, not the entire
@@ -17,43 +17,46 @@ TorchCodec package. It does not promise a speedup over PyAV or TorchCodec.
 
 ## Scope compared with TorchCodec
 
-TorchCodec includes **decoders and encoders**, plus sampling and transforms.
-TensorCodec currently implements the **CPU video/audio decoder subset**.
+TorchCodec includes decoders, encoders, sampling and transforms.
 
-| Module family | TorchCodec 0.17.0 | TensorCodec 0.1.0 |
-| --- | --- | --- |
-| **Decoders** · video | `VideoDecoder` | **Implemented** for CPU SDR video |
-| **Decoders** · audio | `AudioDecoder` | **Implemented** for CPU audio |
-| **Decoders** · images | Image decoding APIs | **Not implemented** |
-| **Encoders** · video / audio / images | Video, audio, JPEG and PNG encoders | **Not implemented** |
-| **Samplers** | Clip sampling APIs | **Not implemented**; decoder FPS queries are available |
-| **Transforms** | Decoder transforms | **Not implemented** |
+Legend for both tables: ✓ supported · △ limited support · — unavailable.
+
+| Module family | Component | TorchCodec 0.17.0 | TensorCodec 0.1.0 |
+| --- | --- | :---: | --- |
+| Decoders | Video · `VideoDecoder` | ✓ | △ CPU, SDR |
+| | Audio · `AudioDecoder` | ✓ | △ CPU |
+| | Images | ✓ | — |
+| Encoders | Video / audio / JPEG / PNG | ✓ | — |
+| Samplers | Clip sampling | ✓ | — |
+| Transforms | Decoder transforms | ✓ | — |
+
+FPS-based decoder queries are available; clip samplers are not implemented.
 
 ### Decoder compatibility
 
 | Area | Capability | TorchCodec 0.17.0 | TensorCodec 0.1.0 |
-| --- | --- | --- | --- |
-| **Video · selection** | Index, slice and batch access | Supported | Supported |
-| | Playback time and range access | Supported | Supported |
-| | Ordering and duplicates | Preserved | Preserved |
-| | Exact / approximate seeking | Supported | Supported; exact by default |
-| | FPS queries, custom frame mappings | Supported | Supported |
-| **Video · formats** | CFR, VFR, offset PTS, B-frames | Supported | Tested |
-| | NCHW / NHWC RGB | Supported | Supported |
-| | uint8 / float32 output | Supported | Supported for SDR |
-| | HDR transfer / display rotation | Supported | **Rejected explicitly** |
-| **Audio** | Ranges, resampling, channel mixing | Supported | Supported; float32 output |
-| **Input / output** | Paths, URLs, bytes, seekable files | Supported | Supported |
+| --- | --- | :---: | --- |
+| Video · selection | Index / slice / batch | ✓ | ✓ |
+| | Playback time / range | ✓ | ✓ |
+| | Order / duplicates preserved | ✓ | ✓ |
+| | Exact / approximate seek | ✓ | ✓ Default: exact |
+| | FPS queries / custom frame mappings | ✓ | ✓ |
+| Video · formats | CFR / VFR / offset PTS / B-frames | ✓ | ✓ Tested |
+| | NCHW / NHWC RGB | ✓ | ✓ |
+| | uint8 / float32 | ✓ | △ SDR |
+| | HDR transfer / display rotation | ✓ | — Explicit rejection |
+| Audio | Ranges / resampling / channel mixing | ✓ | ✓ float32 |
+| Input / output | Paths / URLs / bytes / seekable files | ✓ | ✓ |
 | | Encoded array input | `torch.Tensor` | 1-D uint8 NumPy arrays |
-| | Decoded arrays | `torch.Tensor` | `numpy.ndarray`; array interface + DLPack |
-| **Execution** | CPU | Supported | Supported |
-| | CUDA | Supported | **Not implemented** |
+| | Decoded arrays | `torch.Tensor` | `numpy.ndarray` + array interface / DLPack |
+| Execution | CPU | ✓ | ✓ |
+| | CUDA | ✓ | — |
 | | Python runtime dependency | PyTorch | NumPy |
 
 ### Compatibility means
 
 - Match the supported CPU API's frame selection, ordering, timing and metadata.
-- Check behavior independently **and** against pinned TorchCodec 0.17.0.
+- Check behavior independently and against pinned TorchCodec 0.17.0.
 - Allow color-conversion rounding: at most 1 uint8 unit or 1/65535 for float32
   in the tested cases. Do not claim identical pixels across every FFmpeg build.
 - Accept empty index lists, including the case affected by the reference's
