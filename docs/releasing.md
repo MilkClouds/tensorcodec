@@ -41,8 +41,8 @@ For a build and full validation without uploading, pass `--field publish=false`.
 
 Check the workflow and https://pypi.org/project/tensorcodec/0.1.1/ before reporting
 success. Verify a fresh `uv pip install tensorcodec==0.1.1` and a decode without
-Torch/PyAV on both architectures. Update the version before subsequent releases; PyPI versions cannot
-be overwritten.
+Torch/PyAV on both architectures. Update the version before subsequent releases;
+PyPI versions cannot be overwritten.
 
 The local Linux build is reproducible using `scripts/build_linux_wheel.sh` inside
 `quay.io/pypa/manylinux2014_x86_64` or
@@ -55,11 +55,12 @@ and source links are recorded in `licenses/README.md`.
 - Ordinary CI uses prebuilt conda-forge FFmpeg 7.1.1 through Pixi, including its
   headers and shared libraries. It builds only the TensorCodec extension.
 - PyPI wheels use the smaller LGPL FFmpeg 7.1.5 build plus OpenSSL 3.5.9.
-  Their native prefix is cached by architecture, glibc baseline and build-script checksums. This preserves the
-  wheel's codec set, dependency size and licensing rather than bundling the full
+  Their native prefix is cached by architecture, glibc baseline and build-script
+  checksums. This preserves the wheel's codec set, dependency size and licensing rather than bundling the full
   conda-forge dependency graph.
 - Release validation installs each repaired wheel on glibc 2.17 with Python 3.10
-  and 3.13 and decodes video/audio without Torch, PyAV or a system FFmpeg. Native
+  and 3.13 and decodes video/audio without Torch, PyAV or a system FFmpeg. Python
+  3.10 also checks the minimum NumPy line (1.26.4). Native
   x86_64 and ARM64 runners also run the full pinned playback oracle comparison.
 - Release validation still tests the installed repaired wheel. The fixture CLI
   can be FFmpeg 6 or 7; fixtures explicitly remove auxiliary sentinel packets.
