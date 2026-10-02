@@ -29,7 +29,7 @@ encoded = JpegEncoder(rgb).to_tensor(quality=90)  # 1-D uint8 NumPy array
 ## Contract and limits
 
 - `decode_image`, `decode_jpeg`, `decode_png`, `decode_webp`, `decode_gif`,
-  `decode_avif`, `decode_heic` accept paths, bytes, bytearray or 1-D uint8 arrays.
+  `decode_avif` accept paths, bytes, bytearray or 1-D uint8 arrays.
 - `mode` accepts case-insensitive `UNCHANGED`, `GRAY`, `GRAY_ALPHA`, `RGB`
   (default), `RGB_ALPHA`/`RGBA`, or `ImageReadMode` values.
 - `output_dtype` accepts uint8 (default), uint16 or `"auto"`. PNG preserves native
@@ -44,43 +44,36 @@ encoded = JpegEncoder(rgb).to_tensor(quality=90)  # 1-D uint8 NumPy array
 - AVIF color conversion follows OpenCV. Dropping alpha preserves straight RGB;
   TorchCodec 0.17.0 premultiplies AVIF RGB in that case. Pixel identity with
   TorchCodec is not promised across formats, builds or codec versions.
-- HEIC uses a small optional system `libheif` binding because the tested OpenCV
-  wheel cannot decode HEIC. It supports 8/10/12/16-bit images and multiple top-level
-  images, not timed HEIF sequence tracks. libheif and its decoder plugins must be
-  available separately; it is selected by format, never as a fallback on failure.
+- HEIC is unsupported. There is no separate libheif or other decoder fallback.
 - Other formats depend on the installed OpenCV build. Missing dependencies,
   unsupported codecs and decode failures raise; no alternate decoder is tried.
 - Encoders accept nonempty CHW uint8 arrays with 1 or 3 channels. Both provide
   `to_file`, `to_file_like` and `to_tensor`; JPEG quality is 1–100 (default 75),
   PNG compression level is 0–9 (default 6). Encoded bytes need not match TorchCodec.
 
-## Measured selection rationale
+## Validation and performance
 
-An exploratory Linux CPU comparison used OpenCV 4.13.0.92, TorchCodec 0.17.0,
-three contents (photograph, graphics, seeded noise), three sizes (224 square,
-640×480, 1920×1080), and six encodings: 54 cases total. Decoding from memory to
-RGB CHW matched TorchCodec exactly in all 54 cases. Median timings used five
-batches after three warmups, one pinned CPU, and one OpenCV/Torch thread.
+Tests cover known PNG samples, independent Pillow decoding of encoder outputs,
+orientation, animations, malformed input and TorchCodec 0.17.0 comparisons.
+Pillow is a test dependency, not a runtime backend.
 
-| Encoding | OpenCV / TorchCodec latency, geometric mean |
+On one Linux CPU, the adapter matched TorchCodec exactly for RGB output on 54
+JPEG/PNG/WebP inputs: photograph, graphics and seeded noise at 224 square,
+640×480 and 1920×1080. OpenCV was 4.13.0.92. Timings used one pinned CPU,
+one OpenCV/Torch thread, three warmups and the median of five batches.
+
+| Encoding | Adapter / TorchCodec latency, geometric mean |
 | --- | ---: |
-| JPEG 4:2:0 | 0.98 |
-| JPEG 4:4:4 | 1.00 |
-| Progressive JPEG | 0.97 |
-| PNG | 1.16 |
-| Lossy WebP | 1.00 |
-| Lossless WebP | 1.10 |
+| JPEG 4:2:0 | 1.05 |
+| JPEG 4:4:4 | 1.03 |
+| Progressive JPEG | 1.02 |
+| PNG | 1.28 |
+| Lossy WebP | 1.07 |
+| Lossless WebP | 1.11 |
 
-These are exploratory direct-OpenCV results, not universal performance claims or
-measurements of the final adapter. PNG was approximately 1.95× slower than the
-abandoned specialized native implementation on that corpus. Avoiding native build
-and vendoring complexity is the tradeoff, not an assertion that OpenCV is fastest.
-The small `benchmarks/image_codecs.py` script measures the final adapter and checks
-RGB pixel agreement on a supplied corpus; it prints versions and per-file results.
-
-The final adapter was rerun on the same 54 inputs with CPU affinity pinned and
-one OpenCV/Torch thread. All RGB pixels still matched. Adapter / TorchCodec
-geometric-mean latency ratios were 1.05 (JPEG 4:2:0), 1.03 (JPEG 4:4:4), 1.02
-(progressive JPEG), 1.28 (PNG), 1.07 (lossy WebP), and 1.11 (lossless WebP).
-Encoding speed has not been benchmarked; tests cover independent Pillow decoding,
-PNG lossless round trips, options, file output and partial stream writes.
+These corpus-specific results favor simplicity over specialized native backends;
+OpenCV is not universally fastest. Encoding speed has not been benchmarked.
+With the development and oracle dependencies installed, run
+`python benchmarks/image_codecs.py CORPUS_DIRECTORY` inside a uv virtual
+environment to measure in-memory decoding and exact RGB agreement. The script
+prints versions and per-file results; disk reads are outside timed sections.

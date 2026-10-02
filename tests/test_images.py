@@ -1,6 +1,5 @@
 """Image API contracts from known PNG samples and independent FFmpeg encodings."""
 
-import shutil
 import struct
 import zlib
 from io import BytesIO
@@ -185,14 +184,12 @@ def test_image_errors_and_cpu_boundary():
         decode_image(Path("/nonexistent/image.png"))
 
 
-def test_optional_libraries_report_missing_dependencies(monkeypatch):
-    from tensorcodec.decoders import _image_libraries, decode_image
+def test_heic_is_explicitly_unsupported():
+    from tensorcodec.decoders import decode_image
 
-    monkeypatch.setattr(_image_libraries, "find_library", lambda name: None)
-    _image_libraries._library.cache_clear()
-    heic = struct.pack(">I", 24) + b"ftypheic" + b"\0" * 4 + b"mif1heic"
-    with pytest.raises(ImportError, match="libheif"):
-        decode_image(heic)
+    data = struct.pack(">I", 24) + b"ftypheic" + b"\0" * 4 + b"mif1heic"
+    with pytest.raises(NotImplementedError, match="HEIC"):
+        decode_image(data)
 
 
 @pytest.fixture(scope="module")
@@ -206,49 +203,18 @@ def optional_images(tmp_path_factory):
     second = image.copy()
     second.paste((120, 50, 10, 128), (8, 4, 16, 12))
     image.save(root / "animation.webp", save_all=True, append_images=[second], lossless=True, duration=100)
-    fixtures = Path(__file__).parent / "resources/images"
-    for source, target in [
-        ("rgba.heic", "alpha.heic"),
-        ("animated.heic", "multi.heic"),
-        ("gradient_10bit.heic", "high.heic"),
-    ]:
-        shutil.copyfile(fixtures / source, root / target)
     return root
 
 
-@pytest.mark.parametrize("file", ["animation.webp", "alpha.heic", "multi.heic", "high.heic"])
 @pytest.mark.parametrize("mode", ["RGB", "UNCHANGED", "GRAY", "GRAY_ALPHA", "RGB_ALPHA"])
-def test_optional_image_differential(oracle, optional_images, file, mode):
-    from tensorcodec.decoders import _image_libraries, decode_image
+def test_animated_webp_differential(oracle, optional_images, mode):
+    from tensorcodec.decoders import decode_image
 
-    if not file.endswith("webp"):
-        try:
-            _image_libraries._library("heif")
-        except ImportError:
-            pytest.skip("optional system libheif unavailable")
-    path = optional_images / file
+    path = optional_images / "animation.webp"
     got = decode_image(path, mode=mode)
     expected = as_numpy(oracle.decode_image(path, mode=mode))
     assert got.shape == expected.shape
     np.testing.assert_allclose(got.astype(np.int32), expected.astype(np.int32), atol=2, rtol=0)
-
-
-@pytest.mark.parametrize("dtype", ["auto", "uint16"])
-def test_heic_high_depth(oracle, optional_images, dtype):
-    from tensorcodec.decoders import _image_libraries, decode_heic
-
-    try:
-        _image_libraries._library("heif")
-    except ImportError:
-        pytest.skip("optional system libheif unavailable")
-    actual = decode_heic(optional_images / "high.heic", output_dtype=dtype)
-    expected = as_numpy(
-        oracle.decode_heic(
-            optional_images / "high.heic", output_dtype="auto" if dtype == "auto" else dtype_for(oracle, dtype)
-        )
-    )
-    assert actual.dtype == np.uint16
-    np.testing.assert_array_equal(actual, expected)
 
 
 def test_single_frame_animated_webp_keeps_batch_dimension(oracle, optional_images):
@@ -525,3 +491,21 @@ def test_image_animation_all_frames(oracle, codec):
     else:
         expected = as_numpy(oracle.decode_image(output.getvalue()))
     np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize("bits", [1, 2, 4])
+def test_low_bit_grayscale_transparency(bits):
+    from tensorcodec.decoders import decode_png
+
+    data = (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", 2, 1, bits, 0, 0, 0, 0))
+        + chunk(b"tRNS", struct.pack(">H", 1))
+        + chunk(b"IDAT", zlib.compress(bytes([0, 1 << (8 - bits)])))
+        + chunk(b"IEND", b"")
+    )
+    gray = 255 // ((1 << bits) - 1)
+    for mode, channels in (("GRAY_ALPHA", 1), ("RGB_ALPHA", 3)):
+        result = decode_png(data, mode=mode)
+        np.testing.assert_array_equal(result[:-1], np.tile([[[gray, 0]]], (channels, 1, 1)))
+        np.testing.assert_array_equal(result[-1], [[0, 255]])

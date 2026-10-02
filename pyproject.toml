@@ -43,7 +43,6 @@ include = [
     { path = "docs/*.md", format = "sdist" },
     { path = "packaging/*.json", format = "sdist" },
     { path = "tests/**/*.py", format = "sdist" },
-    { path = "tests/resources/images/*", format = "sdist" },
     { path = "benchmarks/**/*.py", format = "sdist" },
     { path = "benchmarks/*.md", format = "sdist" },
 ]

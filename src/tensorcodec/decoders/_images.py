@@ -118,7 +118,7 @@ def _jpeg_components(data):
 
 
 def _check_webp(data):
-    alpha, animated = False, False
+    animated = False
     offset = 12
     while offset + 8 <= len(data):
         size = int.from_bytes(data[offset + 4 : offset + 8], "little")
@@ -126,12 +126,8 @@ def _check_webp(data):
             animated = True
         if offset + 8 + size > len(data):
             raise RuntimeError("truncated WebP chunk")
-        if data[offset : offset + 4] == b"VP8X" and size >= 10:
-            alpha = bool(data[offset + 8] & 0x10)
-        elif data[offset : offset + 4] == b"VP8L" and size >= 5:
-            alpha = bool(int.from_bytes(data[offset + 9 : offset + 13], "little") & (1 << 28))
         offset += 8 + size + (size & 1)
-    return alpha, animated
+    return animated
 
 
 def _color(images, mode, codec):
@@ -186,66 +182,65 @@ def _image(source, codec, mode, output_dtype):
     animated = False
     channels = _png_channels(data) if codec == "png" else None
     if codec == "heic":
-        from tensorcodec.decoders._image_libraries import heic
-
-        images = heic(data, high_depth=dtype != np.uint8)
-    else:
-        cv = opencv()
-        flags = cv.IMREAD_UNCHANGED
-        if codec == "jpeg":
-            if _jpeg_components(data) == 4 and mode is ImageReadMode.UNCHANGED:
-                raise NotImplementedError("OpenCV cannot preserve CMYK JPEG channels")
-            if mode in (ImageReadMode.GRAY, ImageReadMode.GRAY_ALPHA):
-                flags = cv.IMREAD_GRAYSCALE | cv.IMREAD_IGNORE_ORIENTATION
-        if codec == "webp":
-            _, animated = _check_webp(data)
-        encoded = np.frombuffer(data, np.uint8).reshape(1, -1)
-        try:
-            if codec in ("gif", "webp", "avif"):
-                ok, frames = cv.imdecodemulti(encoded, flags)
-                if not ok or not frames:
-                    raise RuntimeError(f"OpenCV could not decode {codec}; check its codec build support")
-            else:
-                frame = cv.imdecode(encoded, flags)
-                if frame is None:
-                    raise RuntimeError(f"OpenCV could not decode {codec}")
-                frames = [frame]
-        except cv.error as exc:
-            raise RuntimeError(f"OpenCV failed to decode {codec}: {exc}") from exc
-        converted = []
-        for frame in frames:
-            if frame.ndim == 2:
-                frame = frame[..., None]
-            elif frame.shape[-1] == 3:
-                frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
-            elif frame.shape[-1] == 4:
-                frame = cv.cvtColor(frame, cv.COLOR_BGRA2RGBA)
-            if channels == 2 and frame.shape[-1] == 4:
-                frame = frame[..., [0, 3]]
-            if codec == "avif" and frame.dtype == np.uint16:
-                raise NotImplementedError("high-bit-depth AVIF is not supported by this OpenCV adapter")
-            if codec == "png" and data[25] in (0, 2):
-                # OpenCV drops grayscale tRNS; UNCHANGED retains original non-palette channels.
-                base = 1 if data[25] == 0 else 3
-                frame = frame[..., :base]
-                if mode in (ImageReadMode.GRAY_ALPHA, ImageReadMode.RGB_ALPHA):
-                    offset = 8
-                    while offset + 12 <= len(data):
-                        size = int.from_bytes(data[offset : offset + 4], "big")
-                        if data[offset + 4 : offset + 8] == b"tRNS":
-                            key = np.frombuffer(data[offset + 8 : offset + 8 + size], dtype=">u2")
-                            if len(key) != base:
-                                raise RuntimeError("invalid PNG transparency key")
-                            alpha = np.where(
-                                np.all(frame == key, axis=-1, keepdims=True), 0, np.iinfo(frame.dtype).max
-                            ).astype(frame.dtype)
-                            frame = np.concatenate((frame, alpha), axis=-1)
-                            break
-                        offset += size + 12
-            converted.append(frame)
-        if any(f.shape != converted[0].shape or f.dtype != converted[0].dtype for f in converted):
-            raise RuntimeError("image frames have different shapes or bit depths")
-        images = converted[0][None] if len(converted) == 1 else np.stack(converted)
+        raise NotImplementedError("HEIC decoding is not supported by the OpenCV image adapter")
+    cv = opencv()
+    flags = cv.IMREAD_UNCHANGED
+    if codec == "jpeg":
+        if _jpeg_components(data) == 4 and mode is ImageReadMode.UNCHANGED:
+            raise NotImplementedError("OpenCV cannot preserve CMYK JPEG channels")
+        if mode in (ImageReadMode.GRAY, ImageReadMode.GRAY_ALPHA):
+            flags = cv.IMREAD_GRAYSCALE | cv.IMREAD_IGNORE_ORIENTATION
+    if codec == "webp":
+        animated = _check_webp(data)
+    encoded = np.frombuffer(data, np.uint8).reshape(1, -1)
+    try:
+        if codec in ("gif", "webp", "avif"):
+            ok, frames = cv.imdecodemulti(encoded, flags)
+            if not ok or not frames:
+                raise RuntimeError(f"OpenCV could not decode {codec}; check its codec build support")
+        else:
+            frame = cv.imdecode(encoded, flags)
+            if frame is None:
+                raise RuntimeError(f"OpenCV could not decode {codec}")
+            frames = [frame]
+    except cv.error as exc:
+        raise RuntimeError(f"OpenCV failed to decode {codec}: {exc}") from exc
+    converted = []
+    for frame in frames:
+        if frame.ndim == 2:
+            frame = frame[..., None]
+        elif frame.shape[-1] == 3:
+            frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+        elif frame.shape[-1] == 4:
+            frame = cv.cvtColor(frame, cv.COLOR_BGRA2RGBA)
+        if channels == 2 and frame.shape[-1] == 4:
+            frame = frame[..., [0, 3]]
+        if codec == "avif" and frame.dtype == np.uint16:
+            raise NotImplementedError("high-bit-depth AVIF is not supported by this OpenCV adapter")
+        if codec == "png" and data[25] in (0, 2):
+            # OpenCV drops grayscale tRNS; UNCHANGED retains original non-palette channels.
+            base = 1 if data[25] == 0 else 3
+            frame = frame[..., :base]
+            if mode in (ImageReadMode.GRAY_ALPHA, ImageReadMode.RGB_ALPHA):
+                offset = 8
+                while offset + 12 <= len(data):
+                    size = int.from_bytes(data[offset : offset + 4], "big")
+                    if data[offset + 4 : offset + 8] == b"tRNS":
+                        key = np.frombuffer(data[offset + 8 : offset + 8 + size], dtype=">u2")
+                        if len(key) != base:
+                            raise RuntimeError("invalid PNG transparency key")
+                        if data[24] < 8:
+                            key = key * (255 // ((1 << data[24]) - 1))
+                        alpha = np.where(
+                            np.all(frame == key, axis=-1, keepdims=True), 0, np.iinfo(frame.dtype).max
+                        ).astype(frame.dtype)
+                        frame = np.concatenate((frame, alpha), axis=-1)
+                        break
+                    offset += size + 12
+        converted.append(frame)
+    if any(f.shape != converted[0].shape or f.dtype != converted[0].dtype for f in converted):
+        raise RuntimeError("image frames have different shapes or bit depths")
+    images = converted[0][None] if len(converted) == 1 else np.stack(converted)
     images = _color(images, mode, codec)
     if dtype != "auto" and images.dtype != dtype:
         if dtype == np.uint16:
@@ -263,8 +258,7 @@ def decode_image(source, *, mode="RGB", output_dtype=np.uint8):
     Sources are paths, bytes or 1-D uint8 arrays. Modes: UNCHANGED, GRAY,
     GRAY_ALPHA, RGB, RGB_ALPHA (case-insensitive strings or ImageReadMode).
     output_dtype is uint8, uint16 or 'auto'; integer conversion scales the range.
-    HEIC requires system libheif. Other formats require optional OpenCV >= 4.13.
-    Animated PNG is unsupported.
+    Requires optional OpenCV >= 4.13. HEIC and animated PNG are unsupported.
     """
     return _image(source, None, mode, output_dtype)
 
@@ -305,8 +299,3 @@ def decode_avif(source, *, mode="RGB", output_dtype=np.uint8, num_threads=1):
     if num_threads != 1:
         raise NotImplementedError("OpenCV exposes no per-call AVIF thread control")
     return _image(source, "avif", mode, output_dtype)
-
-
-def decode_heic(source, *, mode="RGB", output_dtype=np.uint8):
-    """Decode HEIC/HEIF to CHW/NCHW using optional system libheif."""
-    return _image(source, "heic", mode, output_dtype)

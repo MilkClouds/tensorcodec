@@ -1,4 +1,4 @@
-"""JPEG, PNG and WebP EXIF orientation."""
+"""JPEG/PNG/WebP EXIF and AVIF primary-item orientation."""
 
 import numpy as np
 
@@ -29,6 +29,8 @@ def _avif_orientation(data):
             continue
         for child, lo, hi in _boxes(data, begin + 4, end):
             if child == b"pitm":
+                if lo + 4 > hi:
+                    raise RuntimeError("truncated AVIF primary item")
                 width = 2 if data[lo] == 0 else 4
                 if lo + 4 + width > hi:
                     raise RuntimeError("truncated AVIF primary item")
