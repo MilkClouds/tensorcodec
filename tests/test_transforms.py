@@ -128,6 +128,9 @@ def test_torchcodec_and_torchvision_transforms_convert(scene):
     tv.interpolation = "nearest"
     with pytest.raises(ValueError, match="bilinear"):
         VideoDecoder(scene, transforms=[tv])
+    v1 = counterpart("torchvision.transforms.transforms", "Resize", size=32, interpolation="bilinear", antialias=True)
+    with pytest.raises(ValueError, match="Unsupported transform"):  # only v2, as in TorchCodec
+        VideoDecoder(scene, transforms=[v1])
 
 
 @pytest.mark.parametrize("case", ["swscale", "filtergraph", "rotated"])  # torchcodec's paths: width % 32, rotation

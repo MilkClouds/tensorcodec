@@ -92,7 +92,7 @@ def _convert(transform):
     name = type(transform).__name__
     if module.startswith("torchcodec.transforms") and name in ("Resize", "CenterCrop", "RandomCrop"):
         return globals()[name](transform.size)
-    if module.startswith("torchvision.transforms"):
+    if module.startswith("torchvision.transforms.v2"):
         if name == "Resize":
             interpolation = getattr(transform.interpolation, "value", transform.interpolation)
             if interpolation != "bilinear":

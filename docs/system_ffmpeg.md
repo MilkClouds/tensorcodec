@@ -18,7 +18,7 @@ FFmpeg libraries, or when you intentionally want the codec configuration of that
 installation. The result depends on that external installation rather than the
 bundled release libraries.
 
-Requirements: supported Python, Rust/Cargo, a C toolchain, Clang/libclang,
+Requirements: supported Python, Rust/Cargo 1.88+, a C toolchain, Clang/libclang,
 `pkg-config`, and FFmpeg 7 headers and shared libraries. An executable-only or
 static-only FFmpeg installation is insufficient. FFmpeg 8/9 is not a supported
 replacement for the current native boundary. Do not point a repaired PyPI wheel
