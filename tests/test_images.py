@@ -251,6 +251,30 @@ def test_heic_high_depth(oracle, optional_images, dtype):
     np.testing.assert_array_equal(actual, expected)
 
 
+def test_single_frame_animated_webp_keeps_batch_dimension(oracle, optional_images):
+    from tensorcodec.decoders import _image_libraries, decode_webp
+
+    try:
+        _image_libraries._library("webpdemux")
+    except ImportError:
+        pytest.skip("optional libwebpdemux unavailable")
+    data = (optional_images / "animation.webp").read_bytes()
+    chunks, offset, frames = [], 12, 0
+    while offset + 8 <= len(data):
+        size = int.from_bytes(data[offset + 4 : offset + 8], "little")
+        end = offset + 8 + size + (size & 1)
+        if data[offset : offset + 4] == b"ANMF":
+            frames += 1
+        if frames < 2:
+            chunks.append(data[offset:end])
+        offset = end
+    body = b"WEBP" + b"".join(chunks)
+    encoded = b"RIFF" + struct.pack("<I", len(body)) + body
+    actual, expected = decode_webp(encoded), as_numpy(oracle.decode_webp(encoded))
+    assert actual.shape == (1, 3, 16, 24)
+    np.testing.assert_array_equal(actual, expected)
+
+
 def test_transparent_gif_matches_oracle(oracle, tmp_path):
     from tensorcodec.decoders import decode_gif
 

@@ -242,7 +242,8 @@ def _image(source, codec, mode, output_dtype, threads=1):
         else:
             images = np.rint(images.astype(np.float32) / 257).clip(0, 255).astype(np.uint8)
     images = images.transpose(0, 3, 1, 2)
-    return images[0] if len(images) == 1 else images
+    keep_batch = codec == "webp" and animated
+    return images[0] if len(images) == 1 and not keep_batch else images
 
 
 def decode_image(source, *, mode="RGB", output_dtype=np.uint8):
