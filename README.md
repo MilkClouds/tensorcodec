@@ -76,7 +76,7 @@ indices, `len(decoder)`, or `get_all_frames()`. See [the contract](docs/compatib
 
 ## Features
 
-TensorCodec 0.1.5 relative to TorchCodec 0.17.0.
+TensorCodec 0.2.0 relative to TorchCodec 0.17.0.
 ✓ supported · △ partial support · — not implemented.
 
 | Component | TensorCodec | TorchCodec 0.17.0 |

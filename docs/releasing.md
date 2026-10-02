@@ -1,6 +1,6 @@
 # Publishing TensorCodec
 
-Release version: `0.1.5`. Distribution and import name: `tensorcodec`.
+Release version: `0.2.0`. Distribution and import name: `tensorcodec`.
 Binary wheels target Linux x86_64 and ARM64 (aarch64), glibc 2.17+, CPython 3.10+.
 NumPy must also provide a compatible wheel for the selected Python/glibc pair.
 The wheel bundles shared FFmpeg 7.1.5 and OpenSSL 3.5.9 LTS; its only Python
@@ -14,7 +14,7 @@ The PyPI project is already registered. Its GitHub Trusted Publisher uses:
 | Field | Value |
 | --- | --- |
 | PyPI project name | `tensorcodec` |
-| GitHub owner | `MilkClouds` |
+| GitHub owner | `epishelf` |
 | Repository | `tensorcodec` |
 | Workflow filename | `publish.yml` |
 | Environment | `pypi` |
@@ -32,13 +32,13 @@ the existing GitHub `pypi` environment. Publication fails if authorization is
 missing, tests fail, or the version has already been uploaded.
 
 ```sh
-gh workflow run publish.yml --repo MilkClouds/tensorcodec --ref main
+gh workflow run publish.yml --repo epishelf/tensorcodec --ref main
 ```
 
 For a build and full validation without uploading, pass `--field publish=false`.
 
-Check the workflow and https://pypi.org/project/tensorcodec/0.1.5/ before reporting
-success. Verify a fresh `uv pip install tensorcodec==0.1.5` and a decode without
+Check the workflow and https://pypi.org/project/tensorcodec/0.2.0/ before reporting
+success. Verify a fresh `uv pip install tensorcodec==0.2.0` and a decode without
 Torch/PyAV on both architectures. Update the version before subsequent releases;
 PyPI versions cannot be overwritten.
 
