@@ -371,3 +371,20 @@ def test_cmyk_jpeg_modes(oracle):
             assert (actual[-1] == 255).all()
     with pytest.raises(NotImplementedError, match="CMYK"):
         decode_jpeg(data, mode="UNCHANGED")
+
+
+@pytest.mark.parametrize("codec", ["PNG", "JPEG", "AVIF"])
+@pytest.mark.parametrize("orientation", range(1, 9))
+def test_exif_orientation(oracle, codec, orientation):
+    from tensorcodec.decoders import decode_image
+
+    pixels = np.arange(16 * 24 * 3, dtype=np.uint8).reshape(16, 24, 3)
+    image, output = Image.fromarray(pixels), BytesIO()
+    exif = Image.Exif()
+    exif[274] = orientation
+    image.save(
+        output, format=codec, exif=exif, quality=100, subsampling="4:4:4" if codec == "AVIF" else 0, max_threads=1
+    )
+    actual, expected = decode_image(output.getvalue()), as_numpy(oracle.decode_image(output.getvalue()))
+    assert actual.shape == expected.shape
+    np.testing.assert_allclose(actual.astype(int), expected.astype(int), atol=2, rtol=0)

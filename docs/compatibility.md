@@ -18,6 +18,9 @@ and `output_dtype=np.uint8`. One image is CHW; animated/multi-image output is NC
 - Modes: `UNCHANGED`, `GRAY`, `GRAY_ALPHA`, `RGB`, `RGB_ALPHA` (also `RGBA`).
   Case-insensitive strings or `ImageReadMode` are accepted. Missing alpha becomes
   fully opaque; existing alpha is retained when requested.
+- JPEG/PNG EXIF orientation and AVIF primary-item rotation/mirroring are applied.
+  AVIF track display matrices support right-angle rotations; reflections fail explicitly.
+  HEIC transformations are handled by libheif.
 - Dtypes: NumPy uint8/uint16 or `"auto"`. PNG `UNCHANGED`/`auto` preserves native
   8/16-bit samples. Integer conversion scales the range, not merely the dtype:
   uint8 to uint16 multiplies by 257. High-bit AVIF/HEIC yields full-range uint16,

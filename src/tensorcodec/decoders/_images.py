@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 
 from tensorcodec._native import decode_image as _decode
+from tensorcodec.decoders._image_orientation import apply_orientation, orientation
 
 
 class ImageReadMode(Enum):
@@ -203,6 +204,7 @@ def _image(source, codec, mode, output_dtype, threads=1):
     if codec is not None and found != codec:
         raise RuntimeError(f"expected {codec}, got {found}")
     codec = found
+    orient = orientation(data, codec)
     channels = _png_channels(data) if codec == "png" else 0
     if codec == "jpeg":
         components = _jpeg_components(data)
@@ -234,14 +236,14 @@ def _image(source, codec, mode, output_dtype, threads=1):
         if not alpha:
             images = images[..., :3]
     else:
-        images = _decode(data, channels, threads)
+        images = _decode(data, channels, threads, apply_rotation=codec == "avif" and orient == 1)
     images = _color(images, mode, codec)
     if dtype != "auto" and images.dtype != dtype:
         if dtype == np.uint16:
             images = images.astype(np.uint16) * 257
         else:
             images = np.rint(images.astype(np.float32) / 257).clip(0, 255).astype(np.uint8)
-    images = images.transpose(0, 3, 1, 2)
+    images = apply_orientation(images, orient).transpose(0, 3, 1, 2)
     keep_batch = codec == "webp" and animated
     return images[0] if len(images) == 1 and not keep_batch else images
 
