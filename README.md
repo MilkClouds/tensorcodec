@@ -3,6 +3,7 @@
 # TensorCodec
 
 CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
+Optional image decoding and JPEG/PNG encoding reuse OpenCV.
 
 <p align="center">
 <a href="https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml"><img src="https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
@@ -14,7 +15,7 @@ CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache--2.0-blue" alt="License: Apache-2.0"></a>
 </p>
 
-[Quick start](#quick-start) · [Features](#features) · [Package size](#package-size) · [Compatibility](docs/compatibility.md)
+[Quick start](#quick-start) · [Features](#features) · [Package size](#package-size) · [Compatibility](docs/compatibility.md) · [Image codecs](docs/images.md)
 
 </div>
 

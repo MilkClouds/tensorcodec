@@ -17,12 +17,15 @@ classifiers = [
     "Topic :: Multimedia :: Video",
 ]
 
+[project.optional-dependencies]
+images = ["opencv-python-headless>=4.13,<5"]
+
 [project.urls]
 Repository = "https://github.com/MilkClouds/tensorcodec"
 Issues = "https://github.com/MilkClouds/tensorcodec/issues"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.9", "maturin>=1.8,<2"]
+dev = ["pytest>=8", "ruff>=0.9", "maturin>=1.8,<2", "opencv-python-headless>=4.13,<5", "Pillow>=11.3"]
 oracle = ["torch==2.14.1", "torchcodec==0.17.0"]
 
 [build-system]

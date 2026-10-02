@@ -33,7 +33,7 @@ jobs:
         run: |
           brew install nasm pkg-config coreutils meson ninja
           uv venv
-          uv pip install numpy pytest 'maturin>=1.8,<2' delocate twine
+          uv pip install numpy pytest 'opencv-python-headless>=4.13,<5' 'Pillow>=11.3' 'maturin>=1.8,<2' delocate twine
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
           echo "LIBCLANG_PATH=$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib" >> "$GITHUB_ENV"
           echo "$HOME/.pixi/envs/ffmpeg/bin" >> "$GITHUB_PATH"

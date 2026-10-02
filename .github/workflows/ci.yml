@@ -35,7 +35,7 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/pip install numpy pytest ruff 'maturin>=1.8,<2'
+          .venv/bin/pip install numpy pytest ruff 'maturin>=1.8,<2' 'opencv-python-headless>=4.13,<5' 'Pillow>=11.3'
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
           echo "VIRTUAL_ENV=$GITHUB_WORKSPACE/.venv" >> "$GITHUB_ENV"
       - name: Configure prebuilt FFmpeg
@@ -51,8 +51,8 @@ jobs:
           "$prefix/bin/ffmpeg" -version
       - name: Static checks
         run: |
-          ruff check src/tensorcodec tests scripts
-          ruff format --check src/tensorcodec tests scripts
+          ruff check src/tensorcodec tests scripts benchmarks/image_codecs.py
+          ruff format --check src/tensorcodec tests scripts benchmarks/image_codecs.py
           cargo fmt --manifest-path native/Cargo.toml --check
           cargo clippy --manifest-path native/Cargo.toml --locked -- -D warnings
       - name: Build extension against prebuilt FFmpeg
