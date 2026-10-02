@@ -1,6 +1,7 @@
 //! Only the FFmpeg boundary is native. Public API and playback planning live in Python.
 
 mod ffmpeg;
+mod images;
 
 use numpy::{ndarray::Array, IntoPyArray};
 use pyo3::class::gc::{PyTraverseError, PyVisit};
@@ -136,6 +137,7 @@ fn closed() -> PyErr {
 #[pymodule]
 fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<Decoder>()?;
+    module.add_function(wrap_pyfunction!(images::decode_image, module)?)?;
     module.add("ffmpeg_version", ffmpeg::version())?;
     Ok(())
 }

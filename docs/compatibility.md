@@ -1,9 +1,52 @@
 # TensorCodec compatibility contract
 
-Reference: **TorchCodec 0.17.0**, CPU audio/video decoding. Python operations,
+Reference: **TorchCodec 0.17.0**, CPU audio/video/image decoding. Python operations,
 frame selection, ordering, timestamps, durations, stream selection and metadata
 are tested independently and against this pinned version. Native decoding uses
 FFmpeg; arrays are returned as NumPy instead of torch.Tensor.
+
+## Images
+
+`tensorcodec.decoders` exports `decode_image`, `decode_jpeg`, `decode_png`,
+`decode_webp`, `decode_gif`, `decode_avif`, `decode_heic` and `ImageReadMode`.
+They return arrays directly, not Frame objects. The defaults are `mode="RGB"`
+and `output_dtype=np.uint8`. One image is CHW; animated/multi-image output is NCHW.
+
+- Inputs: local `str`/`Path` paths, encoded `bytes`/`bytearray`, or 1-D uint8 NumPy
+  arrays. Format detection uses encoded content, not the extension. File-like
+  inputs and URLs are not part of the image API.
+- Modes: `UNCHANGED`, `GRAY`, `GRAY_ALPHA`, `RGB`, `RGB_ALPHA` (also `RGBA`).
+  Case-insensitive strings or `ImageReadMode` are accepted. Missing alpha becomes
+  fully opaque; existing alpha is retained when requested.
+- Dtypes: NumPy uint8/uint16 or `"auto"`. PNG `UNCHANGED`/`auto` preserves native
+  8/16-bit samples. Integer conversion scales the range, not merely the dtype:
+  uint8 to uint16 multiplies by 257. High-bit AVIF/HEIC yields full-range uint16,
+  not unscaled sensor codes.
+- JPEG accepts a list/tuple and returns a list, preserving order and independent
+  storage. `device="cpu"` is the only supported device; CUDA fails explicitly.
+- AVIF accepts `num_threads` (positive integer, default 1). It controls FFmpeg
+  worker threads; it is not a libavif setting in TensorCodec.
+
+JPEG, PNG, still WebP, GIF (including disposal/compositing) and single-stream AVIF
+use FFmpeg, releasing the GIL during native decoding. Animated WebP uses optional
+system `libwebpdemux`. HEIC uses optional system `libheif`, including high depth,
+alpha and multiple images of equal shape, channel count and bit depth. Missing
+optional libraries raise ImportError. These libraries are not bundled by this
+change and do not add Python runtime dependencies. HEIC support also depends on
+the decoders compiled into libheif.
+
+Animated PNG and multi-stream AVIF (including separate alpha planes) fail explicitly.
+CMYK JPEG supports RGB/gray conversion, but `UNCHANGED` CMYK samples are unsupported.
+No partial first-image fallback is used for unsupported image containers.
+PNG native-value and HEIC high-depth fixtures are compared exactly. RGB conversion
+is backend-dependent: the tested JPEG/AVIF cases allow up to 2 uint8 levels;
+high-depth AVIF allows 257 uint16 levels (one 8-bit-equivalent level) versus libavif.
+This is image color-conversion compatibility, not bit-exact parity with every
+TorchCodec codec backend. Transparent GIF RGB values are compared where opaque;
+alpha and RGB-mode background composition are checked separately.
+
+Image fixtures use known PNG sample values, independent FFmpeg/Pillow encodings,
+and pinned upstream HEIC assets with their license. Pillow is test-only.
 
 ## Public surface
 

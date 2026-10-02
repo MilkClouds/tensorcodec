@@ -777,6 +777,178 @@ impl Decoder {
         }
     }
 
+    pub fn images(&mut self, requested_channels: usize) -> Result<Images> {
+        unsafe {
+            (*self.codec).err_recognition =
+                av::AV_EF_CRCCHECK | av::AV_EF_BITSTREAM | av::AV_EF_BUFFER | av::AV_EF_EXPLODE;
+        }
+        if unsafe { (*self.format).nb_streams } != 1 {
+            return Err(failure(
+                "multi-stream images (including separate alpha planes) are unsupported",
+            ));
+        }
+        let mut data = Vec::new();
+        let mut layout = None;
+        let mut frames = 0;
+        while self.next()? {
+            unsafe {
+                let frame = &*self.frame;
+                let input: av::AVPixelFormat = std::mem::transmute(frame.format);
+                let descriptor = av::av_pix_fmt_desc_get(input);
+                if descriptor.is_null() || frame.width <= 0 || frame.height <= 0 {
+                    return Err(failure("invalid image pixel layout"));
+                }
+                let descriptor = &*descriptor;
+                let depth = descriptor.comp[0].depth;
+                if !(1..=16).contains(&depth) {
+                    return Err(failure("unsupported image bit depth"));
+                }
+                let channels = if requested_channels != 0 {
+                    requested_channels
+                } else {
+                    let gray = descriptor.nb_components <= 2
+                        && descriptor.flags & (av::AV_PIX_FMT_FLAG_PAL as u64) == 0;
+                    let alpha = descriptor.flags & (av::AV_PIX_FMT_FLAG_ALPHA as u64) != 0;
+                    (if gray { 1 } else { 3 }) + usize::from(alpha)
+                };
+                let high = depth > 8;
+                let current = (frame.width as usize, frame.height as usize, channels, high);
+                if layout.is_some_and(|previous| previous != current) {
+                    return Err(failure(
+                        "image frames have different dimensions, channels or bit depths",
+                    ));
+                }
+                layout = Some(current);
+                use av::AVPixelFormat::*;
+                let output = match (channels, high) {
+                    (1, false) => AV_PIX_FMT_GRAY8,
+                    (2, false) => AV_PIX_FMT_YA8,
+                    (3, false) => AV_PIX_FMT_RGB24,
+                    (4, false) => AV_PIX_FMT_RGBA,
+                    (1, true) => AV_PIX_FMT_GRAY16LE,
+                    (2, true) => AV_PIX_FMT_YA16LE,
+                    (3, true) => AV_PIX_FMT_RGB48LE,
+                    (4, true) => AV_PIX_FMT_RGBA64LE,
+                    _ => return Err(failure("unsupported image channel count")),
+                };
+                let config = (frame.width, frame.height, input as i32, output as i32);
+                if self.scale_config != Some(config) {
+                    av::sws_freeContext(self.scale);
+                    self.scale = av::sws_getContext(
+                        frame.width,
+                        frame.height,
+                        input,
+                        frame.width,
+                        frame.height,
+                        output,
+                        0,
+                        ptr::null_mut(),
+                        ptr::null_mut(),
+                        ptr::null(),
+                    );
+                    self.scale_config = Some(config);
+                }
+                if self.scale.is_null() {
+                    return Err(failure("cannot initialize image color conversion"));
+                }
+                let mut inverse = ptr::null_mut();
+                let mut table = ptr::null_mut();
+                let (
+                    mut source_range,
+                    mut destination_range,
+                    mut brightness,
+                    mut contrast,
+                    mut saturation,
+                ) = (0, 0, 0, 0, 0);
+                check(
+                    av::sws_getColorspaceDetails(
+                        self.scale,
+                        &mut inverse,
+                        &mut source_range,
+                        &mut table,
+                        &mut destination_range,
+                        &mut brightness,
+                        &mut contrast,
+                        &mut saturation,
+                    ),
+                    "read image color settings",
+                )?;
+                if frame.color_range != av::AVColorRange::AVCOL_RANGE_UNSPECIFIED {
+                    source_range =
+                        i32::from(frame.color_range == av::AVColorRange::AVCOL_RANGE_JPEG);
+                }
+                let coefficients = av::sws_getCoefficients(frame.colorspace as i32);
+                check(
+                    av::sws_setColorspaceDetails(
+                        self.scale,
+                        coefficients,
+                        source_range,
+                        coefficients,
+                        destination_range,
+                        brightness,
+                        contrast,
+                        saturation,
+                    ),
+                    "configure image color conversion",
+                )?;
+                let stride = current
+                    .0
+                    .checked_mul(channels)
+                    .and_then(|n| n.checked_mul(if high { 2 } else { 1 }))
+                    .filter(|&n| n <= i32::MAX as usize)
+                    .ok_or_else(|| failure("image is too large"))?;
+                let length = stride
+                    .checked_mul(current.1)
+                    .ok_or_else(|| failure("image is too large"))?;
+                let start = data.len();
+                let end = start
+                    .checked_add(length)
+                    .and_then(|n| n.checked_add(64))
+                    .ok_or_else(|| failure("image batch is too large"))?;
+                data.resize(end, 0);
+                let destination = [
+                    data.as_mut_ptr().add(start),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                ];
+                let lines = [stride as i32, 0, 0, 0];
+                let rows = av::sws_scale(
+                    self.scale,
+                    frame.data.as_ptr() as *const *const u8,
+                    frame.linesize.as_ptr(),
+                    0,
+                    frame.height,
+                    destination.as_ptr(),
+                    lines.as_ptr(),
+                );
+                if rows != frame.height {
+                    return Err(failure("incomplete image color conversion"));
+                }
+                data.truncate(start + length);
+                frames += 1;
+            }
+        }
+        let (width, height, channels, high) =
+            layout.ok_or_else(|| failure("image contains no frames"))?;
+        let pixels = if high {
+            Pixels::U16(
+                data.chunks_exact(2)
+                    .map(|p| u16::from_le_bytes([p[0], p[1]]))
+                    .collect(),
+            )
+        } else {
+            Pixels::U8(data)
+        };
+        Ok(Images {
+            pixels,
+            frames,
+            width,
+            height,
+            channels,
+        })
+    }
+
     pub fn video(
         &mut self,
         request: VideoRequest,
@@ -1326,6 +1498,13 @@ pub struct Video {
     pub pixels: Pixels,
     pub pts: Vec<f64>,
     pub durations: Vec<f64>,
+    pub width: usize,
+    pub height: usize,
+    pub channels: usize,
+}
+pub struct Images {
+    pub pixels: Pixels,
+    pub frames: usize,
     pub width: usize,
     pub height: usize,
     pub channels: usize,

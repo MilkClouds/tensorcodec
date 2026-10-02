@@ -2,7 +2,7 @@
 
 # TensorCodec
 
-CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
+CPU video/audio/image decoding with TorchCodec-style APIs and NumPy output.
 
 <p align="center">
 <a href="https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml"><img src="https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
@@ -18,7 +18,7 @@ CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
 
 </div>
 
-- **TorchCodec API without PyTorch.** CPU video/audio decoder interfaces follow
+- **TorchCodec API without PyTorch.** CPU video/audio/image decoder interfaces follow
   TorchCodec and return NumPy arrays.
 - **Validated playback semantics.** Frame selection, ordering, timestamps and audio
   ranges are checked against TorchCodec 0.17.0 and independently generated media.
@@ -50,8 +50,24 @@ with AudioDecoder("audio.wav", sample_rate=16000, num_channels=1) as audio:
     waveform = samples.data                           # float32: (channels, samples)
 ```
 
-Arrays keep their storage after the decoder closes. Paths, URLs, encoded bytes,
+Arrays keep their storage after the decoder closes. Video/audio paths, URLs, encoded bytes,
 1-D uint8 arrays and seekable file objects are supported.
+
+Image decoding uses TorchCodec's function API and returns CHW arrays (NCHW for animations):
+
+```python
+from tensorcodec.decoders import decode_image, decode_jpeg, decode_png
+
+rgb = decode_image("image.webp")
+batch = decode_jpeg(["left.jpg", "right.jpg"])
+depth = decode_png("depth.png", mode="UNCHANGED", output_dtype="auto")
+```
+
+JPEG, PNG, WebP, GIF and single-stream AVIF use the bundled FFmpeg backend.
+Animated WebP requires system `libwebpdemux`; HEIC/HEIF requires system `libheif`,
+as it does in TorchCodec. These optional libraries are loaded only when needed.
+No Pillow or PyTorch runtime dependency is added. See [image compatibility](docs/compatibility.md#images)
+for color modes, high-depth conversion, input types and limitations.
 
 For time-based windows without an initial full packet scan (since v0.1.4):
 
@@ -75,14 +91,14 @@ indices, `len(decoder)`, or `get_all_frames()`. See [the contract](docs/compatib
 
 ## Features
 
-TensorCodec 0.1.5 relative to TorchCodec 0.17.0.
+Current source relative to TorchCodec 0.17.0; image functions are not in the 0.1.5 release.
 ✓ supported · △ partial support · — not implemented.
 
 | Component | TensorCodec | TorchCodec 0.17.0 |
 | --- | --- | --- |
 | Video decoder | △ CPU, SDR/HDR RGB | ✓ CPU / CUDA |
 | Audio decoder | ✓ CPU | ✓ CPU |
-| Image decoders | — | ✓ |
+| Image decoders | △ CPU; HEIC/animated WebP need optional system libraries | ✓ CPU; JPEG also CUDA |
 | Video / audio / image encoders | — | ✓ |
 | Clip samplers | — | ✓ |
 | Decoder transforms | ✓ Resize, CenterCrop, RandomCrop | ✓ |

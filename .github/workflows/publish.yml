@@ -87,7 +87,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           uv venv
-          uv pip install pytest numpy twine dist/*.whl
+          uv pip install pytest numpy twine 'Pillow>=11.3' dist/*.whl
       - name: Generate baseline runtime fixtures
         run: uv run --no-sync python scripts/check_wheel_runtime.py generate .runtime-fixtures
       - name: Test on glibc 2.17 with Python 3.10 and 3.13

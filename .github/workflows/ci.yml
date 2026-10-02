@@ -29,13 +29,13 @@ jobs:
         with:
           pixi-version: v0.81.0
           run-install: false
-          global-environments: ffmpeg=7.1.1=gpl_* --with libclang=18 --with pkg-config
+          global-environments: ffmpeg=7.1.1=gpl_* --with libclang=18 --with pkg-config --with libheif --with libwebp
           global-cache: true
       - name: Install build tools
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/pip install numpy pytest ruff 'maturin>=1.8,<2'
+          .venv/bin/pip install numpy pytest ruff 'maturin>=1.8,<2' 'Pillow>=11.3'
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
           echo "VIRTUAL_ENV=$GITHUB_WORKSPACE/.venv" >> "$GITHUB_ENV"
       - name: Configure prebuilt FFmpeg
@@ -60,6 +60,6 @@ jobs:
       - name: Install pinned reference
         run: python -m pip install torch==2.14.1 torchcodec==0.17.0 --index-url https://download.pytorch.org/whl/cpu
       - name: Validate independent contract against reference
-        run: pytest tests/test_video_contract.py tests/test_audio_contract.py --backend torchcodec
+        run: pytest tests/test_video_contract.py tests/test_audio_contract.py tests/test_images.py --backend torchcodec
       - name: Run contract and differential tests
         run: pytest --compare

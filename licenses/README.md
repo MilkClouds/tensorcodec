@@ -21,3 +21,7 @@ System-library builds can additionally depend on Zstandard; its notices are
 retained here. Inspect repaired wheels when changing the native build.
 
 PNG/Deflate decoding uses the platform zlib library.
+
+Image decoding can optionally load the user's system libheif (HEIC) and
+libwebpdemux (animated WebP); these are not bundled. The source distribution's
+HEIC test assets retain TorchCodec's BSD license in `tests/resources/images/`.
