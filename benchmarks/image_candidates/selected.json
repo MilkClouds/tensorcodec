@@ -1,0 +1,1982 @@
+{
+  "versions": {
+    "numpy": "2.5.3",
+    "Pillow": "12.3.0",
+    "torch": "2.14.1+cpu",
+    "torchcodec": "0.17.0+cpu"
+  },
+  "method": "RGB uint8 CHW NumPy; in-memory bytes; one CPU affinity where available; 3 warmups; 5 rotated-order batches, median milliseconds; allocation/materialization included, encoding/IO excluded.",
+  "rows": [
+    {
+      "case": "photo-224x224-JPEG420",
+      "format": "JPEG420",
+      "content": "photo",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 7319,
+      "ms": {
+        "tensorcodec": 0.31857434660196304,
+        "torchcodec": 0.34224290400743484,
+        "pillow": 0.42636651545763016,
+        "image-rs": 0.3203190863132477,
+        "turbo-rs": 0.29118459671735764
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 3,
+          "mae": 0.08925914115646258
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-224x224-JPEG444",
+      "format": "JPEG444",
+      "content": "photo",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 9503,
+      "ms": {
+        "tensorcodec": 0.43286535888910294,
+        "torchcodec": 0.4995769262313843,
+        "pillow": 0.6392958573997021,
+        "image-rs": 0.4139513522386551,
+        "turbo-rs": 0.38100067526102066
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 3,
+          "mae": 0.005141900510204082
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-224x224-JPEG-progressive",
+      "format": "JPEG-progressive",
+      "content": "photo",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 7082,
+      "ms": {
+        "tensorcodec": 0.7308598607778549,
+        "torchcodec": 0.8301981998717084,
+        "pillow": 0.9541254490613937,
+        "image-rs": 0.7720388368599944,
+        "turbo-rs": 0.604594387114048
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 3,
+          "mae": 0.08925914115646258
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-224x224-PNG",
+      "format": "PNG",
+      "content": "photo",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 33782,
+      "ms": {
+        "tensorcodec": 0.5952050702439414,
+        "torchcodec": 1.4787952861060267,
+        "pillow": 1.8200110644102097,
+        "image-rs": 0.572047894820571
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-224x224-WebP",
+      "format": "WebP",
+      "content": "photo",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 4998,
+      "ms": {
+        "tensorcodec": 0.6573878601193428,
+        "torchcodec": 0.7430371269583702,
+        "pillow": 1.049064442907509,
+        "image-rs": 1.1620032822801953
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-224x224-WebP-lossless",
+      "format": "WebP-lossless",
+      "content": "photo",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 25344,
+      "ms": {
+        "tensorcodec": 1.2196573118368785,
+        "torchcodec": 1.3500562248130639,
+        "pillow": 1.5884981575337322,
+        "image-rs": 1.482737793897589
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-224x224-JPEG420",
+      "format": "JPEG420",
+      "content": "graphics",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 22277,
+      "ms": {
+        "tensorcodec": 0.4848475754261017,
+        "torchcodec": 0.49743305891752243,
+        "pillow": 0.6501992046833038,
+        "image-rs": 0.6584399566054344,
+        "turbo-rs": 0.5766521021723747
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.23660714285714285
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-224x224-JPEG444",
+      "format": "JPEG444",
+      "content": "graphics",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 37271,
+      "ms": {
+        "tensorcodec": 0.7911321901997854,
+        "torchcodec": 0.770864401792371,
+        "pillow": 0.9289974937351738,
+        "image-rs": 1.0393480252888467,
+        "turbo-rs": 0.8355707344081666
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 3,
+          "mae": 0.013565582482993197
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-224x224-JPEG-progressive",
+      "format": "JPEG-progressive",
+      "content": "graphics",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 18210,
+      "ms": {
+        "tensorcodec": 0.8014668843575886,
+        "torchcodec": 0.850114066685949,
+        "pillow": 1.030466549338833,
+        "image-rs": 0.8630554151275883,
+        "turbo-rs": 0.7303407121645776
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.23660714285714285
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-224x224-PNG",
+      "format": "PNG",
+      "content": "graphics",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 2238,
+      "ms": {
+        "tensorcodec": 0.07903318852186203,
+        "torchcodec": 0.18142934888601303,
+        "pillow": 0.6957277655601501,
+        "image-rs": 0.07481440901756287
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-224x224-WebP",
+      "format": "WebP",
+      "content": "graphics",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 10720,
+      "ms": {
+        "tensorcodec": 0.875659328367975,
+        "torchcodec": 0.9136761470538813,
+        "pillow": 1.0982963123491831,
+        "image-rs": 1.8409066410227255
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-224x224-WebP-lossless",
+      "format": "WebP-lossless",
+      "content": "graphics",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 942,
+      "ms": {
+        "tensorcodec": 0.10981421917676926,
+        "torchcodec": 0.11028368026018143,
+        "pillow": 0.3275740519165993,
+        "image-rs": 0.0853242352604866
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-224x224-JPEG420",
+      "format": "JPEG420",
+      "content": "noise",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 45654,
+      "ms": {
+        "tensorcodec": 0.6600354984402657,
+        "torchcodec": 0.6627437099814415,
+        "pillow": 0.7012026757001877,
+        "image-rs": 0.9326254710172995,
+        "turbo-rs": 0.7948135158845356
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.39372076955782315
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-224x224-JPEG444",
+      "format": "JPEG444",
+      "content": "noise",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 94423,
+      "ms": {
+        "tensorcodec": 1.205207132126974,
+        "torchcodec": 1.2371704496186355,
+        "pillow": 1.2794286729051516,
+        "image-rs": 1.6961641171399284,
+        "turbo-rs": 1.4912406711474708
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 3,
+          "mae": 0.047951211734693876
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-224x224-JPEG-progressive",
+      "format": "JPEG-progressive",
+      "content": "noise",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 41686,
+      "ms": {
+        "tensorcodec": 1.931550563313067,
+        "torchcodec": 1.9034472294151783,
+        "pillow": 2.1171447281774722,
+        "image-rs": 1.9558018280400171,
+        "turbo-rs": 1.903941947966814
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.39372076955782315
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-224x224-PNG",
+      "format": "PNG",
+      "content": "noise",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 150969,
+      "ms": {
+        "tensorcodec": 0.6768934801220894,
+        "torchcodec": 0.8130884748332354,
+        "pillow": 1.161876107965197,
+        "image-rs": 0.7181339783639442
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-224x224-WebP",
+      "format": "WebP",
+      "content": "noise",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 42596,
+      "ms": {
+        "tensorcodec": 3.162715739260117,
+        "torchcodec": 3.3510403914584055,
+        "pillow": 3.471724858338183,
+        "image-rs": 4.397849552333355
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-224x224-WebP-lossless",
+      "format": "WebP-lossless",
+      "content": "noise",
+      "size": [
+        224,
+        224
+      ],
+      "bytes": 150608,
+      "ms": {
+        "tensorcodec": 0.9436152483287611,
+        "torchcodec": 0.9529475461352955,
+        "pillow": 1.239729593649055,
+        "image-rs": 1.0132033910070146
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-640x480-JPEG420",
+      "format": "JPEG420",
+      "content": "photo",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 26604,
+      "ms": {
+        "tensorcodec": 1.146871540130991,
+        "torchcodec": 1.116400325877799,
+        "pillow": 1.5953254132043748,
+        "image-rs": 1.1239162025352318,
+        "turbo-rs": 1.017719809267972
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.05518229166666667
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-640x480-JPEG444",
+      "format": "JPEG444",
+      "content": "photo",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 35346,
+      "ms": {
+        "tensorcodec": 1.604597507552667,
+        "torchcodec": 1.52358195434014,
+        "pillow": 1.9431747496128082,
+        "image-rs": 1.498384103178978,
+        "turbo-rs": 1.4502705695728462
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 2,
+          "mae": 0.0031890190972222224
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-640x480-JPEG-progressive",
+      "format": "JPEG-progressive",
+      "content": "photo",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 25304,
+      "ms": {
+        "tensorcodec": 2.7809899300336838,
+        "torchcodec": 2.603797987103462,
+        "pillow": 3.2667027643093696,
+        "image-rs": 2.60913609103723,
+        "turbo-rs": 2.1131577591101327
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.05518229166666667
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-640x480-PNG",
+      "format": "PNG",
+      "content": "photo",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 129509,
+      "ms": {
+        "tensorcodec": 2.9495301154943614,
+        "torchcodec": 5.674136492113273,
+        "pillow": 7.410284131765366,
+        "image-rs": 3.107984151159014
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-640x480-WebP",
+      "format": "WebP",
+      "content": "photo",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 15206,
+      "ms": {
+        "tensorcodec": 2.0915796566340656,
+        "torchcodec": 2.061296378572782,
+        "pillow": 3.1725110655481163,
+        "image-rs": 4.182923119515181
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-640x480-WebP-lossless",
+      "format": "WebP-lossless",
+      "content": "photo",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 91052,
+      "ms": {
+        "tensorcodec": 3.155436197465116,
+        "torchcodec": 3.138758671971468,
+        "pillow": 4.6454365365207195,
+        "image-rs": 5.034760261575381
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-640x480-JPEG420",
+      "format": "JPEG420",
+      "content": "graphics",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 131167,
+      "ms": {
+        "tensorcodec": 2.2139749179283776,
+        "torchcodec": 2.1379355134235487,
+        "pillow": 2.6796359568834305,
+        "image-rs": 3.0428431928157806,
+        "turbo-rs": 2.4614339837661157
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.23579969618055555
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-640x480-JPEG444",
+      "format": "JPEG444",
+      "content": "graphics",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 224811,
+      "ms": {
+        "tensorcodec": 3.4923026846213774,
+        "torchcodec": 3.4535364247858524,
+        "pillow": 3.8612400078111224,
+        "image-rs": 4.858455620706081,
+        "turbo-rs": 4.020118878947364
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 3,
+          "mae": 0.01448459201388889
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-640x480-JPEG-progressive",
+      "format": "JPEG-progressive",
+      "content": "graphics",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 106693,
+      "ms": {
+        "tensorcodec": 4.473647801205516,
+        "torchcodec": 4.491226514801383,
+        "pillow": 4.995031548397882,
+        "image-rs": 4.711949399539402,
+        "turbo-rs": 4.404824692755938
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.23579969618055555
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-640x480-PNG",
+      "format": "PNG",
+      "content": "graphics",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 8698,
+      "ms": {
+        "tensorcodec": 0.38608238101005554,
+        "torchcodec": 0.8783985461507525,
+        "pillow": 3.983151995473438,
+        "image-rs": 0.37378791719675064
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-640x480-WebP",
+      "format": "WebP",
+      "content": "graphics",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 61612,
+      "ms": {
+        "tensorcodec": 5.3199706599116325,
+        "torchcodec": 5.491009248154504,
+        "pillow": 6.52642734348774,
+        "image-rs": 10.53547610839208
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-640x480-WebP-lossless",
+      "format": "WebP-lossless",
+      "content": "graphics",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 1190,
+      "ms": {
+        "tensorcodec": 0.5465011671185493,
+        "torchcodec": 0.47845616936683655,
+        "pillow": 1.7706857373317082,
+        "image-rs": 0.48187538981437683
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-640x480-JPEG420",
+      "format": "JPEG420",
+      "content": "noise",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 276032,
+      "ms": {
+        "tensorcodec": 4.088966641575098,
+        "torchcodec": 3.770206951432758,
+        "pillow": 4.47437004186213,
+        "image-rs": 5.595280167957147,
+        "turbo-rs": 4.889658519199917
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.3952756076388889
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-640x480-JPEG444",
+      "format": "JPEG444",
+      "content": "noise",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 575169,
+      "ms": {
+        "tensorcodec": 7.208265736699104,
+        "torchcodec": 7.306059822440147,
+        "pillow": 7.7666472643613815,
+        "image-rs": 10.895750795801481,
+        "turbo-rs": 9.121447335928679
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 3,
+          "mae": 0.04700629340277778
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-640x480-JPEG-progressive",
+      "format": "JPEG-progressive",
+      "content": "noise",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 251826,
+      "ms": {
+        "tensorcodec": 11.966407919923464,
+        "torchcodec": 12.101354698340097,
+        "pillow": 12.778840959072113,
+        "image-rs": 12.027538691957792,
+        "turbo-rs": 12.019088491797447
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.3952756076388889
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-640x480-PNG",
+      "format": "PNG",
+      "content": "noise",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 923408,
+      "ms": {
+        "tensorcodec": 5.714292948444684,
+        "torchcodec": 5.6675756350159645,
+        "pillow": 7.116861330966155,
+        "image-rs": 5.893951281905174
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-640x480-WebP",
+      "format": "WebP",
+      "content": "noise",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 257546,
+      "ms": {
+        "tensorcodec": 21.053092554211617,
+        "torchcodec": 19.88494209945202,
+        "pillow": 21.356704644858837,
+        "image-rs": 28.863079845905304
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-640x480-WebP-lossless",
+      "format": "WebP-lossless",
+      "content": "noise",
+      "size": [
+        640,
+        480
+      ],
+      "bytes": 921680,
+      "ms": {
+        "tensorcodec": 5.708484777382442,
+        "torchcodec": 5.973499578734239,
+        "pillow": 7.054871693253517,
+        "image-rs": 6.385713070631027
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-1920x1080-JPEG420",
+      "format": "JPEG420",
+      "content": "photo",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 98729,
+      "ms": {
+        "tensorcodec": 6.335563425506864,
+        "torchcodec": 5.49193595846494,
+        "pillow": 9.587949762741724,
+        "image-rs": 5.700619891285896,
+        "turbo-rs": 5.504827148147991
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.02902665252057613
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-1920x1080-JPEG444",
+      "format": "JPEG444",
+      "content": "photo",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 136376,
+      "ms": {
+        "tensorcodec": 8.620034158229828,
+        "torchcodec": 7.849951460957527,
+        "pillow": 11.359576135873795,
+        "image-rs": 7.265032269060612,
+        "turbo-rs": 7.029488310217857
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 3,
+          "mae": 0.0017147312242798353
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-1920x1080-JPEG-progressive",
+      "format": "JPEG-progressive",
+      "content": "photo",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 87072,
+      "ms": {
+        "tensorcodec": 15.26867039501667,
+        "torchcodec": 14.494728917876879,
+        "pillow": 17.121857032179832,
+        "image-rs": 13.144444053371748,
+        "turbo-rs": 9.598095901310444
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 4,
+          "mae": 0.02902665252057613
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-1920x1080-PNG",
+      "format": "PNG",
+      "content": "photo",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 482609,
+      "ms": {
+        "tensorcodec": 15.714406967163086,
+        "torchcodec": 31.4980736002326,
+        "pillow": 44.9791606515646,
+        "image-rs": 16.21475163847208
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-1920x1080-WebP",
+      "format": "WebP",
+      "content": "photo",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 42772,
+      "ms": {
+        "tensorcodec": 9.72047820687294,
+        "torchcodec": 9.498042520135641,
+        "pillow": 17.567998729646206,
+        "image-rs": 23.38422928005457
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "photo-1920x1080-WebP-lossless",
+      "format": "WebP-lossless",
+      "content": "photo",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 307784,
+      "ms": {
+        "tensorcodec": 15.958595089614391,
+        "torchcodec": 14.285916462540627,
+        "pillow": 25.365088135004044,
+        "image-rs": 27.78587955981493
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-1920x1080-JPEG420",
+      "format": "JPEG420",
+      "content": "graphics",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 886216,
+      "ms": {
+        "tensorcodec": 14.202261343598366,
+        "torchcodec": 12.728787958621979,
+        "pillow": 16.65626000612974,
+        "image-rs": 20.312169566750526,
+        "turbo-rs": 16.15175511687994
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 11,
+          "mae": 0.23672453703703702
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-1920x1080-JPEG444",
+      "format": "JPEG444",
+      "content": "graphics",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 1514863,
+      "ms": {
+        "tensorcodec": 23.224574513733387,
+        "torchcodec": 21.20803203433752,
+        "pillow": 26.08264796435833,
+        "image-rs": 32.78392553329468,
+        "turbo-rs": 26.948368176817894
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 3,
+          "mae": 0.014372749485596708
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-1920x1080-JPEG-progressive",
+      "format": "JPEG-progressive",
+      "content": "graphics",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 719741,
+      "ms": {
+        "tensorcodec": 27.208897285163403,
+        "torchcodec": 27.110706083476543,
+        "pillow": 32.11980126798153,
+        "image-rs": 30.51014430820942,
+        "turbo-rs": 26.763678528368473
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 11,
+          "mae": 0.23672453703703702
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-1920x1080-PNG",
+      "format": "PNG",
+      "content": "graphics",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 44897,
+      "ms": {
+        "tensorcodec": 2.590323000081948,
+        "torchcodec": 5.2940680512360165,
+        "pillow": 26.613873429596424,
+        "image-rs": 2.6470717480954002
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-1920x1080-WebP",
+      "format": "WebP",
+      "content": "graphics",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 412956,
+      "ms": {
+        "tensorcodec": 34.27509963512421,
+        "torchcodec": 33.24252087622881,
+        "pillow": 42.87997633218765,
+        "image-rs": 65.82179758697748
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "graphics-1920x1080-WebP-lossless",
+      "format": "WebP-lossless",
+      "content": "graphics",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 3302,
+      "ms": {
+        "tensorcodec": 3.7732938812537626,
+        "torchcodec": 2.8427732487519584,
+        "pillow": 12.209602942069372,
+        "image-rs": 3.4918637635807195
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-1920x1080-JPEG420",
+      "format": "JPEG420",
+      "content": "noise",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 1862057,
+      "ms": {
+        "tensorcodec": 25.80876834690571,
+        "torchcodec": 24.29366484284401,
+        "pillow": 29.13115732371807,
+        "image-rs": 37.59732469916344,
+        "turbo-rs": 32.522029243409634
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 11,
+          "mae": 0.39605115097736626
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-1920x1080-JPEG444",
+      "format": "JPEG444",
+      "content": "noise",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 3876178,
+      "ms": {
+        "tensorcodec": 50.69590546190739,
+        "torchcodec": 46.8188039958477,
+        "pillow": 54.65860012918711,
+        "image-rs": 72.52769730985165,
+        "turbo-rs": 63.69514390826225
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 3,
+          "mae": 0.04752411265432099
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-1920x1080-JPEG-progressive",
+      "format": "JPEG-progressive",
+      "content": "noise",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 1697904,
+      "ms": {
+        "tensorcodec": 78.60574591904879,
+        "torchcodec": 78.19500006735325,
+        "pillow": 82.21063390374184,
+        "image-rs": 83.61110929399729,
+        "turbo-rs": 81.34329970926046
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 11,
+          "mae": 0.39605115097736626
+        },
+        "turbo-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-1920x1080-PNG",
+      "format": "PNG",
+      "content": "noise",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 6230665,
+      "ms": {
+        "tensorcodec": 43.06319821625948,
+        "torchcodec": 40.47695826739073,
+        "pillow": 51.192681305110455,
+        "image-rs": 43.271289207041264
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-1920x1080-WebP",
+      "format": "WebP",
+      "content": "noise",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 1740812,
+      "ms": {
+        "tensorcodec": 133.12074542045593,
+        "torchcodec": 128.27384192496538,
+        "pillow": 137.89507374167442,
+        "image-rs": 184.47029404342175
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    },
+    {
+      "case": "noise-1920x1080-WebP-lossless",
+      "format": "WebP-lossless",
+      "content": "noise",
+      "size": [
+        1920,
+        1080
+      ],
+      "bytes": 6220880,
+      "ms": {
+        "tensorcodec": 36.694176495075226,
+        "torchcodec": 35.74570547789335,
+        "pillow": 61.238883063197136,
+        "image-rs": 40.24044517427683
+      },
+      "diff_vs_torch": {
+        "tensorcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "torchcodec": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "pillow": {
+          "max": 0,
+          "mae": 0.0
+        },
+        "image-rs": {
+          "max": 0,
+          "mae": 0.0
+        }
+      }
+    }
+  ]
+}

@@ -94,78 +94,11 @@ def _png_channels(data):
     return channels
 
 
-def _jpeg_components(data):
-    offset = 2
-    while offset < len(data):
-        if data[offset] != 0xFF:
-            break
-        while offset < len(data) and data[offset] == 0xFF:
-            offset += 1
-        if offset >= len(data):
-            break
-        marker, offset = data[offset], offset + 1
-        if marker in (0xDA, 0xD9):
-            break
-        length = int.from_bytes(data[offset : offset + 2], "big")
-        if length < 2 or offset + length > len(data):
-            break
-        if marker in (0xC0, 0xC1, 0xC2, 0xC3, 0xC5, 0xC6, 0xC7, 0xC9, 0xCA, 0xCB, 0xCD, 0xCE, 0xCF):
-            if length < 8:
-                break
-            return data[offset + 7]
-        offset += length
-    raise RuntimeError("JPEG has no valid frame header")
-
-
-def _check_webp(data):
-    alpha, animated = False, False
-    offset = 12
-    while offset + 8 <= len(data):
-        size = int.from_bytes(data[offset + 4 : offset + 8], "little")
-        if data[offset : offset + 4] in (b"ANIM", b"ANMF"):
-            animated = True
-        if offset + 8 + size > len(data):
-            raise RuntimeError("truncated WebP chunk")
-        if data[offset : offset + 4] == b"VP8X" and size >= 10:
-            alpha = bool(data[offset + 8] & 0x10)
-        elif data[offset : offset + 4] == b"VP8L" and size >= 5:
-            alpha = bool(int.from_bytes(data[offset + 9 : offset + 13], "little") & (1 << 28))
-        offset += 8 + size + (size & 1)
-    return alpha, animated
-
-
-def _gif_info(data):
-    if len(data) < 13:
-        raise RuntimeError("truncated GIF header")
-    table_size = 3 * (2 << (data[10] & 7)) if data[10] & 128 else 0
-    background = data[13 + data[11] * 3 : 16 + data[11] * 3] if table_size else bytes(3)
-    offset, alpha = 13 + table_size, False
-    while offset < len(data):
-        kind, offset = data[offset], offset + 1
-        if kind == 0x3B:
-            return alpha, tuple(background)
-        if kind == 0x21:
-            if offset + 2 > len(data):
-                break
-            if data[offset] == 0xF9 and data[offset + 1] == 4 and offset + 6 <= len(data):
-                alpha |= bool(data[offset + 2] & 1)
-            offset += 1
-        elif kind == 0x2C:
-            if offset + 9 > len(data):
-                break
-            flags = data[offset + 8]
-            offset += 9 + (3 * (2 << (flags & 7)) if flags & 128 else 0) + 1
-        else:
-            raise RuntimeError("invalid GIF block")
-        while offset < len(data) and data[offset]:
-            offset += 1 + data[offset]
-        offset += 1
-    raise RuntimeError("truncated GIF data")
-
-
 def _color(images, mode, codec):
     channels = images.shape[-1]
     if mode is ImageReadMode.UNCHANGED:
+        return images
+    if channels == mode.value:
         return images
     gray_source = channels < 3
     color = images[..., :1] if gray_source else images[..., :3]
@@ -205,38 +138,20 @@ def _image(source, codec, mode, output_dtype, threads=1):
         raise RuntimeError(f"expected {codec}, got {found}")
     codec = found
     orient = orientation(data, codec)
-    channels = _png_channels(data) if codec == "png" else 0
-    if codec == "jpeg":
-        components = _jpeg_components(data)
-        if components == 4 and mode is ImageReadMode.UNCHANGED:
-            raise NotImplementedError("UNCHANGED CMYK JPEG output is unsupported; choose an RGB or gray mode")
-        if components == 4:
-            channels = 3  # FFmpeg's fourth decoded component is not image alpha.
-        if mode in (ImageReadMode.GRAY, ImageReadMode.GRAY_ALPHA):
-            channels = 1
+    animated = False
+    if codec == "png":
+        _png_channels(data)  # Reject APNG rather than silently returning its first frame.
     if codec == "heic":
         from tensorcodec.decoders._image_libraries import heic
 
         images = heic(data, high_depth=dtype != np.uint8)
-    elif codec == "webp":
-        alpha, animated = _check_webp(data)
-        if animated:
-            from tensorcodec.decoders._image_libraries import webp_animation
-
-            images = webp_animation(data)
-        else:
-            images = _decode(data, 4 if alpha else 3, threads)
-        if not alpha:
-            images = images[..., :3]
-    elif codec == "gif":
-        alpha, background = _gif_info(data)
-        images = _decode(data, 4, threads)
-        if mode in (ImageReadMode.RGB, ImageReadMode.GRAY):
-            images[..., :3] = np.where(images[..., 3:] == 0, np.array(background, np.uint8), images[..., :3])
-        if not alpha:
-            images = images[..., :3]
     else:
-        images = _decode(data, channels, threads, apply_rotation=codec == "avif" and orient == 1)
+        depth = 0 if dtype == "auto" else np.dtype(dtype).itemsize * 8
+        images, native_orientation, animated = _decode(
+            data, ("jpeg", "png", "webp", "gif", "avif").index(codec), mode.value, depth, threads
+        )
+        if codec == "avif":
+            orient = native_orientation
     images = _color(images, mode, codec)
     if dtype != "auto" and images.dtype != dtype:
         if dtype == np.uint16:
@@ -254,8 +169,8 @@ def decode_image(source, *, mode="RGB", output_dtype=np.uint8):
     Sources are paths, bytes or 1-D uint8 arrays. Modes: UNCHANGED, GRAY,
     GRAY_ALPHA, RGB, RGB_ALPHA (case-insensitive strings or ImageReadMode).
     output_dtype is uint8, uint16 or 'auto'; integer conversion scales the range.
-    HEIC requires system libheif; animated WebP requires libwebpdemux.
-    Animated PNG and multi-stream AVIF are unsupported.
+    HEIC requires system libheif. Other image codecs are bundled in wheels.
+    Animated PNG is unsupported.
     """
     return _image(source, None, mode, output_dtype)
 
@@ -280,7 +195,7 @@ def decode_png(source, *, mode="RGB", output_dtype=np.uint8):
 
 
 def decode_webp(source, *, mode="RGB", output_dtype=np.uint8):
-    """Decode WebP to CHW/NCHW. Animations require system libwebpdemux."""
+    """Decode WebP to CHW/NCHW. Animations are composited with libwebpdemux."""
     return _image(source, "webp", mode, output_dtype)
 
 
@@ -290,7 +205,7 @@ def decode_gif(source, *, mode="RGB", output_dtype=np.uint8):
 
 
 def decode_avif(source, *, mode="RGB", output_dtype=np.uint8, num_threads=1):
-    """Decode a single-stream AVIF to CHW/NCHW; num_threads controls FFmpeg workers."""
+    """Decode AVIF to CHW/NCHW; num_threads controls libavif workers."""
     if not isinstance(num_threads, int) or isinstance(num_threads, bool) or num_threads < 1:
         raise ValueError("num_threads must be a positive integer")
     return _image(source, "avif", mode, output_dtype, num_threads)

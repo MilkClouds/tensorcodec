@@ -2,6 +2,7 @@
 
 mod ffmpeg;
 mod images;
+mod png_image;
 
 use numpy::{ndarray::Array, IntoPyArray};
 use pyo3::class::gc::{PyTraverseError, PyVisit};

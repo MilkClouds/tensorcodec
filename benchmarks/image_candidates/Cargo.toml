@@ -1,0 +1,15 @@
+[package]
+name = "image-candidate"
+version = "0.0.0"
+edition = "2021"
+[lib]
+name = "_image_candidate"
+crate-type = ["cdylib"]
+[dependencies]
+image = {version = "=0.25.10", default-features = false, features = ["jpeg", "png", "webp", "gif"]}
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py310"] }
+numpy = "0.23"
+libjpeg-turbo-rs = "=0.8.0"
+[profile.release]
+lto = "thin"
+codegen-units = 1

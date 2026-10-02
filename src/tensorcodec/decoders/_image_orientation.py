@@ -1,82 +1,6 @@
-"""JPEG/PNG EXIF and AVIF item orientation, without an image-library dependency."""
+"""JPEG, PNG and WebP EXIF orientation."""
 
 import numpy as np
-
-
-def _boxes(data, start=0, end=None):
-    end = len(data) if end is None else end
-    while start < end:
-        if start + 8 > end:
-            raise RuntimeError("truncated AVIF box")
-        size, kind = int.from_bytes(data[start : start + 4], "big"), data[start + 4 : start + 8]
-        header = 8
-        if size == 1:
-            if start + 16 > end:
-                raise RuntimeError("truncated extended AVIF box")
-            size, header = int.from_bytes(data[start + 8 : start + 16], "big"), 16
-        elif size == 0:
-            size = end - start
-        if size < header or start + size > end:
-            raise RuntimeError("invalid AVIF box size")
-        yield kind, start + header, start + size
-        start += size
-
-
-def _avif_orientation(data):
-    properties, associations, primary = [], [], None
-    for kind, begin, end in _boxes(data):
-        if kind != b"meta":
-            continue
-        for child, lo, hi in _boxes(data, begin + 4, end):
-            if child == b"pitm":
-                width = 2 if data[lo] == 0 else 4
-                if lo + 4 + width > hi:
-                    raise RuntimeError("truncated AVIF primary item")
-                primary = int.from_bytes(data[lo + 4 : lo + 4 + width], "big")
-            if child != b"iprp":
-                continue
-            for prop, p, q in _boxes(data, lo, hi):
-                if prop == b"ipco":
-                    properties = list(_boxes(data, p, q))
-                elif prop == b"ipma":
-                    if p + 8 > q:
-                        raise RuntimeError("truncated AVIF property associations")
-                    width = 2 if data[p] == 0 else 4
-                    entry_width = 2 if int.from_bytes(data[p + 1 : p + 4], "big") & 1 else 1
-                    count, cursor = int.from_bytes(data[p + 4 : p + 8], "big"), p + 8
-                    for _ in range(count):
-                        if cursor + width + 1 > q:
-                            raise RuntimeError("truncated AVIF item association")
-                        item = int.from_bytes(data[cursor : cursor + width], "big")
-                        n = data[cursor + width]
-                        cursor += width + 1
-                        if cursor + n * entry_width > q:
-                            raise RuntimeError("truncated AVIF property indices")
-                        indices = [
-                            int.from_bytes(data[i : i + entry_width], "big") & ((1 << (entry_width * 8 - 1)) - 1)
-                            for i in range(cursor, cursor + n * entry_width, entry_width)
-                        ]
-                        associations.append((item, indices))
-                        cursor += n * entry_width
-    angle, axis = 0, None
-    for item, indices in associations:
-        if item != primary:
-            continue
-        for index in indices:
-            if index == 0:
-                continue
-            if index > len(properties):
-                raise RuntimeError("invalid AVIF property index")
-            kind, start, end = properties[index - 1]
-            if kind in (b"irot", b"imir"):
-                if start == end:
-                    raise RuntimeError("empty AVIF orientation property")
-                if kind == b"irot":
-                    angle = data[start] & 3
-                else:
-                    axis = data[start] & 1
-    # ISO/IEC 23008-12 item rotation/mirror mapped to TIFF's eight orientations.
-    return ((1, 4, 2), (8, 5, 7), (3, 2, 4), (6, 7, 5))[angle][0 if axis is None else axis + 1]
 
 
 def _tiff_orientation(data):
@@ -105,9 +29,17 @@ def _tiff_orientation(data):
 
 
 def orientation(data, codec):
-    if codec == "avif":
-        return _avif_orientation(data)
-    if codec == "png":
+    if codec == "webp":
+        offset = 12
+        while offset + 8 <= len(data):
+            size = int.from_bytes(data[offset + 4 : offset + 8], "little")
+            if offset + 8 + size > len(data):
+                break
+            if data[offset : offset + 4] == b"EXIF":
+                payload = data[offset + 8 : offset + 8 + size]
+                return _tiff_orientation(payload.removeprefix(b"Exif\0\0"))
+            offset += 8 + size + (size & 1)
+    elif codec == "png":
         offset = 8
         while offset + 12 <= len(data):
             size = int.from_bytes(data[offset : offset + 4], "big")

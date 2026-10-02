@@ -2,8 +2,8 @@
 
 Reference: **TorchCodec 0.17.0**, CPU audio/video/image decoding. Python operations,
 frame selection, ordering, timestamps, durations, stream selection and metadata
-are tested independently and against this pinned version. Native decoding uses
-FFmpeg; arrays are returned as NumPy instead of torch.Tensor.
+are tested independently and against this pinned version. Audio/video decoding uses FFmpeg; images use dedicated codec libraries.
+Arrays are returned as NumPy instead of torch.Tensor.
 
 ## Images
 
@@ -18,8 +18,7 @@ and `output_dtype=np.uint8`. One image is CHW; animated/multi-image output is NC
 - Modes: `UNCHANGED`, `GRAY`, `GRAY_ALPHA`, `RGB`, `RGB_ALPHA` (also `RGBA`).
   Case-insensitive strings or `ImageReadMode` are accepted. Missing alpha becomes
   fully opaque; existing alpha is retained when requested.
-- JPEG/PNG EXIF orientation and AVIF primary-item rotation/mirroring are applied.
-  AVIF track display matrices support right-angle rotations; reflections fail explicitly.
+- JPEG/PNG/WebP EXIF orientation and AVIF rotation/mirroring are applied.
   HEIC transformations are handled by libheif.
 - Dtypes: NumPy uint8/uint16 or `"auto"`. PNG `UNCHANGED`/`auto` preserves native
   8/16-bit samples. Integer conversion scales the range, not merely the dtype:
@@ -27,29 +26,38 @@ and `output_dtype=np.uint8`. One image is CHW; animated/multi-image output is NC
   not unscaled sensor codes.
 - JPEG accepts a list/tuple and returns a list, preserving order and independent
   storage. `device="cpu"` is the only supported device; CUDA fails explicitly.
-- AVIF accepts `num_threads` (positive integer, default 1). It controls FFmpeg
-  worker threads; it is not a libavif setting in TensorCodec.
+- AVIF accepts `num_threads` (positive integer, default 1), passed to libavif.
+- CMYK JPEG `UNCHANGED` returns CMYK samples; RGB/gray use the same conversion
+  as TorchCodec/Pillow. The fourth CMYK component is not alpha.
 
-JPEG, PNG, still WebP, GIF (including disposal/compositing) and single-stream AVIF
-use FFmpeg, releasing the GIL during native decoding. Animated WebP uses optional
-system `libwebpdemux`. HEIC uses optional system `libheif`, including high depth,
-alpha and multiple images of equal shape, channel count and bit depth. Missing
-optional libraries raise ImportError. These libraries are not bundled by this
-change and do not add Python runtime dependencies. HEIC support also depends on
-the decoders compiled into libheif.
+Image decoding releases the GIL and does not use FFmpeg:
 
-Animated PNG and multi-stream AVIF (including separate alpha planes) fail explicitly.
-CMYK JPEG supports RGB/gray conversion, but `UNCHANGED` CMYK samples are unsupported.
-No partial first-image fallback is used for unsupported image containers.
-PNG native-value and HEIC high-depth fixtures are compared exactly. RGB conversion
-is backend-dependent: the tested JPEG/AVIF cases allow up to 2 uint8 levels;
-high-depth AVIF allows 257 uint16 levels (one 8-bit-equivalent level) versus libavif.
-This is image color-conversion compatibility, not bit-exact parity with every
-TorchCodec codec backend. Transparent GIF RGB values are compared where opaque;
-alpha and RGB-mode background composition are checked separately.
+| Format | Backend | Distribution |
+| --- | --- | --- |
+| JPEG | libjpeg-turbo 3.2.0 | Bundled shared library |
+| PNG | Rust png 0.18.1 | Compiled into extension |
+| WebP, including animation | libwebp/libwebpdemux 1.6.0 | Bundled shared libraries |
+| GIF | giflib | Vendored from TorchCodec v0.17.0 |
+| AVIF, including alpha and sequences | libavif 1.4.2, dav1d, libyuv | Bundled shared library |
+| HEIC | System libheif | Optional; missing library raises ImportError |
+
+HEIC handles high depth, alpha and multiple images of equal shape, channel count
+and bit depth, subject to the decoders compiled into libheif. Animated PNG is
+unsupported and fails explicitly. No first-frame fallback is used for unsupported
+animations. PNG UNCHANGED expands palette indices; non-palette tRNS keys retain
+native channels, matching TorchCodec. Alpha modes expand those keys.
+
+PNG modes/dtypes, JPEG subsampling/progressive/CMYK, still/animated WebP, GIF
+compositing, AVIF alpha/high depth/orientation and HEIC fixtures are tested against
+TorchCodec. Textured JPEG/PNG/WebP fixtures compare exactly. This is sampled
+compatibility, not a guarantee of bit-exact output for every codec version or
+file. GIF RGB background composition intentionally follows TorchCodec; Pillow
+uses different colors in some transparent regions. Color profiles are not
+converted to sRGB and HDR is not tone-mapped.
 
 Image fixtures use known PNG sample values, independent FFmpeg/Pillow encodings,
 and pinned upstream HEIC assets with their license. Pillow is test-only.
+See [backend measurements](image-backends.md) for the selection evidence.
 
 ## Public surface
 

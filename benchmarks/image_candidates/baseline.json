@@ -1,0 +1,1838 @@
+[
+  {
+    "case": "photo-224x224-JPEG420",
+    "format": "JPEG420",
+    "size": [
+      224,
+      224
+    ],
+    "content": "photo",
+    "bytes": 7319,
+    "ms": {
+      "native": 0.3127584233880043,
+      "image-rs": 0.36524999886751175,
+      "torchcodec": 0.32465483993291855,
+      "pillow": 0.41281867772340775
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 3,
+        "mae": 0.08925914115646258
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-224x224-JPEG444",
+    "format": "JPEG444",
+    "size": [
+      224,
+      224
+    ],
+    "content": "photo",
+    "bytes": 9503,
+    "ms": {
+      "native": 0.39221182465553284,
+      "image-rs": 0.43017029762268066,
+      "torchcodec": 0.4428016394376755,
+      "pillow": 0.5276620015501976
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 3,
+        "mae": 0.005141900510204082
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-224x224-JPEG-progressive",
+    "format": "JPEG-progressive",
+    "size": [
+      224,
+      224
+    ],
+    "content": "photo",
+    "bytes": 7082,
+    "ms": {
+      "native": 0.7591181993484497,
+      "image-rs": 0.7064919173717499,
+      "torchcodec": 0.738275982439518,
+      "pillow": 0.9229648354891185
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 3,
+        "mae": 0.08925914115646258
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-224x224-PNG",
+    "format": "PNG",
+    "size": [
+      224,
+      224
+    ],
+    "content": "photo",
+    "bytes": 33782,
+    "ms": {
+      "native": 1.2873747386038303,
+      "image-rs": 0.6173255667090416,
+      "torchcodec": 1.3290181884477879,
+      "pillow": 1.7386459830132397
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-224x224-WebP",
+    "format": "WebP",
+    "size": [
+      224,
+      224
+    ],
+    "content": "photo",
+    "bytes": 4998,
+    "ms": {
+      "native": 0.6611301282117533,
+      "image-rs": 1.1586261913180351,
+      "torchcodec": 0.6653646752238274,
+      "pillow": 0.9927565329953244
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-224x224-WebP-lossless",
+    "format": "WebP-lossless",
+    "size": [
+      224,
+      224
+    ],
+    "content": "photo",
+    "bytes": 25344,
+    "ms": {
+      "native": 0.9375779579083124,
+      "image-rs": 1.1547924174616735,
+      "torchcodec": 0.9382238392444218,
+      "pillow": 1.2726499699056149
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-224x224-JPEG420",
+    "format": "JPEG420",
+    "size": [
+      224,
+      224
+    ],
+    "content": "graphics",
+    "bytes": 22277,
+    "ms": {
+      "native": 0.38042251020669937,
+      "image-rs": 0.5173525214195251,
+      "torchcodec": 0.36453772336244583,
+      "pillow": 0.4894721880555153
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.23660714285714285
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-224x224-JPEG444",
+    "format": "JPEG444",
+    "size": [
+      224,
+      224
+    ],
+    "content": "graphics",
+    "bytes": 37271,
+    "ms": {
+      "native": 0.5577897280454636,
+      "image-rs": 0.7557127138842707,
+      "torchcodec": 0.5729645863175392,
+      "pillow": 0.6561538949608803
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 3,
+        "mae": 0.013565582482993197
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-224x224-JPEG-progressive",
+    "format": "JPEG-progressive",
+    "size": [
+      224,
+      224
+    ],
+    "content": "graphics",
+    "bytes": 18210,
+    "ms": {
+      "native": 0.8230883737697321,
+      "image-rs": 0.8117973804473877,
+      "torchcodec": 0.8778899791650474,
+      "pillow": 0.9067405692555688
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.23660714285714285
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-224x224-PNG",
+    "format": "PNG",
+    "size": [
+      224,
+      224
+    ],
+    "content": "graphics",
+    "bytes": 2238,
+    "ms": {
+      "native": 0.1794789731502533,
+      "image-rs": 0.06538886576890945,
+      "torchcodec": 0.19863706082105637,
+      "pillow": 0.6945323944091797
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-224x224-WebP",
+    "format": "WebP",
+    "size": [
+      224,
+      224
+    ],
+    "content": "graphics",
+    "bytes": 10720,
+    "ms": {
+      "native": 0.8062962046329011,
+      "image-rs": 1.7884713800057122,
+      "torchcodec": 0.8879966619941924,
+      "pillow": 1.2254928549130757
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-224x224-WebP-lossless",
+    "format": "WebP-lossless",
+    "size": [
+      224,
+      224
+    ],
+    "content": "graphics",
+    "bytes": 942,
+    "ms": {
+      "native": 0.09305238723754883,
+      "image-rs": 0.07142838090658188,
+      "torchcodec": 0.10076288133859634,
+      "pillow": 0.31766094267368317
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-224x224-JPEG420",
+    "format": "JPEG420",
+    "size": [
+      224,
+      224
+    ],
+    "content": "noise",
+    "bytes": 45654,
+    "ms": {
+      "native": 0.5997470877272018,
+      "image-rs": 0.8644462086078597,
+      "torchcodec": 0.6507079303264618,
+      "pillow": 0.6848244369029999
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.39372076955782315
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-224x224-JPEG444",
+    "format": "JPEG444",
+    "size": [
+      224,
+      224
+    ],
+    "content": "noise",
+    "bytes": 94423,
+    "ms": {
+      "native": 1.125846551183392,
+      "image-rs": 1.6684488139369271,
+      "torchcodec": 1.1703335950451512,
+      "pillow": 1.3484080055994647
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 3,
+        "mae": 0.047951211734693876
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-224x224-JPEG-progressive",
+    "format": "JPEG-progressive",
+    "size": [
+      224,
+      224
+    ],
+    "content": "noise",
+    "bytes": 41686,
+    "ms": {
+      "native": 1.9090279936790466,
+      "image-rs": 1.8878272351096659,
+      "torchcodec": 1.9059059106641345,
+      "pillow": 2.0485048880800605
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.39372076955782315
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-224x224-PNG",
+    "format": "PNG",
+    "size": [
+      224,
+      224
+    ],
+    "content": "noise",
+    "bytes": 150969,
+    "ms": {
+      "native": 0.8113250475038182,
+      "image-rs": 0.6878752633929253,
+      "torchcodec": 0.8377120608375186,
+      "pillow": 0.991958881849828
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-224x224-WebP",
+    "format": "WebP",
+    "size": [
+      224,
+      224
+    ],
+    "content": "noise",
+    "bytes": 42596,
+    "ms": {
+      "native": 3.0519476160407066,
+      "image-rs": 4.553463723924425,
+      "torchcodec": 3.0668975616043266,
+      "pillow": 3.3247578889131546
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-224x224-WebP-lossless",
+    "format": "WebP-lossless",
+    "size": [
+      224,
+      224
+    ],
+    "content": "noise",
+    "bytes": 150608,
+    "ms": {
+      "native": 0.9036101400852203,
+      "image-rs": 0.9088916920645292,
+      "torchcodec": 0.9548169560730457,
+      "pillow": 1.098965952063308
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-640x480-JPEG420",
+    "format": "JPEG420",
+    "size": [
+      640,
+      480
+    ],
+    "content": "photo",
+    "bytes": 26604,
+    "ms": {
+      "native": 1.1350397835485637,
+      "image-rs": 1.0665092955936084,
+      "torchcodec": 1.0454724165233407,
+      "pillow": 1.4978213994591325
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.05518229166666667
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-640x480-JPEG444",
+    "format": "JPEG444",
+    "size": [
+      640,
+      480
+    ],
+    "content": "photo",
+    "bytes": 35346,
+    "ms": {
+      "native": 1.415203486023278,
+      "image-rs": 1.4260286092758179,
+      "torchcodec": 1.445110576848189,
+      "pillow": 1.9144798187833083
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 2,
+        "mae": 0.0031890190972222224
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-640x480-JPEG-progressive",
+    "format": "JPEG-progressive",
+    "size": [
+      640,
+      480
+    ],
+    "content": "photo",
+    "bytes": 25304,
+    "ms": {
+      "native": 2.439423231408,
+      "image-rs": 2.3550416987675886,
+      "torchcodec": 2.4633731693029404,
+      "pillow": 2.9160166159272194
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.05518229166666667
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-640x480-PNG",
+    "format": "PNG",
+    "size": [
+      640,
+      480
+    ],
+    "content": "photo",
+    "bytes": 129509,
+    "ms": {
+      "native": 4.94668601701657,
+      "image-rs": 2.710741013288498,
+      "torchcodec": 5.0627666392496655,
+      "pillow": 7.046364868680636
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-640x480-WebP",
+    "format": "WebP",
+    "size": [
+      640,
+      480
+    ],
+    "content": "photo",
+    "bytes": 15206,
+    "ms": {
+      "native": 1.9486643373966217,
+      "image-rs": 4.177248726288478,
+      "torchcodec": 1.8505632877349854,
+      "pillow": 3.01711019128561
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-640x480-WebP-lossless",
+    "format": "WebP-lossless",
+    "size": [
+      640,
+      480
+    ],
+    "content": "photo",
+    "bytes": 91052,
+    "ms": {
+      "native": 2.989216779287045,
+      "image-rs": 4.555005114525557,
+      "torchcodec": 3.065078304364131,
+      "pillow": 4.572551231831312
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-640x480-JPEG420",
+    "format": "JPEG420",
+    "size": [
+      640,
+      480
+    ],
+    "content": "graphics",
+    "bytes": 131167,
+    "ms": {
+      "native": 2.157534472644329,
+      "image-rs": 2.867697738111019,
+      "torchcodec": 1.9658826487629038,
+      "pillow": 2.470696488252053
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.23579969618055555
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-640x480-JPEG444",
+    "format": "JPEG444",
+    "size": [
+      640,
+      480
+    ],
+    "content": "graphics",
+    "bytes": 224811,
+    "ms": {
+      "native": 3.23963656344197,
+      "image-rs": 4.558597380916278,
+      "torchcodec": 3.276688978075981,
+      "pillow": 3.4801305996047125
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 3,
+        "mae": 0.01448459201388889
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-640x480-JPEG-progressive",
+    "format": "JPEG-progressive",
+    "size": [
+      640,
+      480
+    ],
+    "content": "graphics",
+    "bytes": 106693,
+    "ms": {
+      "native": 4.547648131847382,
+      "image-rs": 4.274443619781071,
+      "torchcodec": 4.209839506074786,
+      "pillow": 4.727206891402602
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.23579969618055555
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-640x480-PNG",
+    "format": "PNG",
+    "size": [
+      640,
+      480
+    ],
+    "content": "graphics",
+    "bytes": 8698,
+    "ms": {
+      "native": 0.9408321369577337,
+      "image-rs": 0.36818157881498337,
+      "torchcodec": 0.8294916401306788,
+      "pillow": 3.8557611405849457
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-640x480-WebP",
+    "format": "WebP",
+    "size": [
+      640,
+      480
+    ],
+    "content": "graphics",
+    "bytes": 61612,
+    "ms": {
+      "native": 5.188380368053913,
+      "image-rs": 10.813632514327765,
+      "torchcodec": 5.443399505955832,
+      "pillow": 7.015836983919144
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-640x480-WebP-lossless",
+    "format": "WebP-lossless",
+    "size": [
+      640,
+      480
+    ],
+    "content": "graphics",
+    "bytes": 1190,
+    "ms": {
+      "native": 0.571601539850235,
+      "image-rs": 0.506751649081707,
+      "torchcodec": 0.4975387081503868,
+      "pillow": 1.848261182506879
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-640x480-JPEG420",
+    "format": "JPEG420",
+    "size": [
+      640,
+      480
+    ],
+    "content": "noise",
+    "bytes": 276032,
+    "ms": {
+      "native": 3.8927823305130005,
+      "image-rs": 5.621784366667271,
+      "torchcodec": 3.601166419684887,
+      "pillow": 4.300143362747298
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.3952756076388889
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-640x480-JPEG444",
+    "format": "JPEG444",
+    "size": [
+      640,
+      480
+    ],
+    "content": "noise",
+    "bytes": 575169,
+    "ms": {
+      "native": 6.912371516227722,
+      "image-rs": 10.272666346281767,
+      "torchcodec": 7.061867415904999,
+      "pillow": 7.84672312438488
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 3,
+        "mae": 0.04700629340277778
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-640x480-JPEG-progressive",
+    "format": "JPEG-progressive",
+    "size": [
+      640,
+      480
+    ],
+    "content": "noise",
+    "bytes": 251826,
+    "ms": {
+      "native": 11.19201754530271,
+      "image-rs": 11.100350568691889,
+      "torchcodec": 10.829218352834383,
+      "pillow": 12.105474869410196
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.3952756076388889
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-640x480-PNG",
+    "format": "PNG",
+    "size": [
+      640,
+      480
+    ],
+    "content": "noise",
+    "bytes": 923408,
+    "ms": {
+      "native": 5.721691197582653,
+      "image-rs": 5.869018534819285,
+      "torchcodec": 5.6426264345645905,
+      "pillow": 7.480774447321892
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-640x480-WebP",
+    "format": "WebP",
+    "size": [
+      640,
+      480
+    ],
+    "content": "noise",
+    "bytes": 257546,
+    "ms": {
+      "native": 19.369433633983135,
+      "image-rs": 27.72324625402689,
+      "torchcodec": 20.137750543653965,
+      "pillow": 20.832205191254616
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-640x480-WebP-lossless",
+    "format": "WebP-lossless",
+    "size": [
+      640,
+      480
+    ],
+    "content": "noise",
+    "bytes": 921680,
+    "ms": {
+      "native": 5.508032006522019,
+      "image-rs": 6.447361037135124,
+      "torchcodec": 5.438797441976411,
+      "pillow": 6.62788450717926
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-1920x1080-JPEG420",
+    "format": "JPEG420",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "photo",
+    "bytes": 98729,
+    "ms": {
+      "native": 7.071321830153465,
+      "image-rs": 5.631846686204274,
+      "torchcodec": 5.552360477546851,
+      "pillow": 8.911907207220793
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.02902665252057613
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-1920x1080-JPEG444",
+    "format": "JPEG444",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "photo",
+    "bytes": 136376,
+    "ms": {
+      "native": 7.584858685731888,
+      "image-rs": 6.8680766969919205,
+      "torchcodec": 7.775374129414558,
+      "pillow": 12.083444744348526
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 3,
+        "mae": 0.0017147312242798353
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-1920x1080-JPEG-progressive",
+    "format": "JPEG-progressive",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "photo",
+    "bytes": 87072,
+    "ms": {
+      "native": 12.977310456335545,
+      "image-rs": 12.064751237630844,
+      "torchcodec": 12.020805850625038,
+      "pillow": 16.94928202778101
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 4,
+        "mae": 0.02902665252057613
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-1920x1080-PNG",
+    "format": "PNG",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "photo",
+    "bytes": 482609,
+    "ms": {
+      "native": 32.42434095591307,
+      "image-rs": 16.17104560136795,
+      "torchcodec": 34.15762446820736,
+      "pillow": 44.46955490857363
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-1920x1080-WebP",
+    "format": "WebP",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "photo",
+    "bytes": 42772,
+    "ms": {
+      "native": 9.86394239589572,
+      "image-rs": 21.43648825585842,
+      "torchcodec": 9.004825260490179,
+      "pillow": 17.6306264474988
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "photo-1920x1080-WebP-lossless",
+    "format": "WebP-lossless",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "photo",
+    "bytes": 307784,
+    "ms": {
+      "native": 16.135292127728462,
+      "image-rs": 27.97636017203331,
+      "torchcodec": 15.479901184638342,
+      "pillow": 24.237191304564476
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-1920x1080-JPEG420",
+    "format": "JPEG420",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "graphics",
+    "bytes": 886216,
+    "ms": {
+      "native": 12.604563807447752,
+      "image-rs": 19.774293527007103,
+      "torchcodec": 13.096215203404427,
+      "pillow": 17.12391246110201
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 11,
+        "mae": 0.23672453703703702
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-1920x1080-JPEG444",
+    "format": "JPEG444",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "graphics",
+    "bytes": 1514863,
+    "ms": {
+      "native": 22.611414082348347,
+      "image-rs": 31.751234084367752,
+      "torchcodec": 21.900122985243797,
+      "pillow": 26.588899083435535
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 3,
+        "mae": 0.014372749485596708
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-1920x1080-JPEG-progressive",
+    "format": "JPEG-progressive",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "graphics",
+    "bytes": 719741,
+    "ms": {
+      "native": 26.823491789400578,
+      "image-rs": 28.01576256752014,
+      "torchcodec": 26.786607690155506,
+      "pillow": 29.536647722125053
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 11,
+        "mae": 0.23672453703703702
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-1920x1080-PNG",
+    "format": "PNG",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "graphics",
+    "bytes": 44897,
+    "ms": {
+      "native": 5.706679075956345,
+      "image-rs": 2.349092314640681,
+      "torchcodec": 4.727693274617195,
+      "pillow": 24.81568604707718
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-1920x1080-WebP",
+    "format": "WebP",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "graphics",
+    "bytes": 412956,
+    "ms": {
+      "native": 34.77558586746454,
+      "image-rs": 67.97935720533133,
+      "torchcodec": 33.823488280177116,
+      "pillow": 42.73637942969799
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "graphics-1920x1080-WebP-lossless",
+    "format": "WebP-lossless",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "graphics",
+    "bytes": 3302,
+    "ms": {
+      "native": 3.400814634832469,
+      "image-rs": 3.052412635750241,
+      "torchcodec": 2.7663027867674828,
+      "pillow": 11.371756593386332
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-1920x1080-JPEG420",
+    "format": "JPEG420",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "noise",
+    "bytes": 1862057,
+    "ms": {
+      "native": 23.436269722878933,
+      "image-rs": 36.52063012123108,
+      "torchcodec": 23.252838291227818,
+      "pillow": 28.08335144072771
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 11,
+        "mae": 0.39605115097736626
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-1920x1080-JPEG444",
+    "format": "JPEG444",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "noise",
+    "bytes": 3876178,
+    "ms": {
+      "native": 47.563351690769196,
+      "image-rs": 70.44968940317631,
+      "torchcodec": 47.688371501863,
+      "pillow": 52.23469715565443
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 3,
+        "mae": 0.04752411265432099
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-1920x1080-JPEG-progressive",
+    "format": "JPEG-progressive",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "noise",
+    "bytes": 1697904,
+    "ms": {
+      "native": 75.28789155185223,
+      "image-rs": 76.82928442955017,
+      "torchcodec": 74.24560934305191,
+      "pillow": 78.53144127875566
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 11,
+        "mae": 0.39605115097736626
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-1920x1080-PNG",
+    "format": "PNG",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "noise",
+    "bytes": 6230665,
+    "ms": {
+      "native": 37.04366646707058,
+      "image-rs": 39.02777936309576,
+      "torchcodec": 36.3033777102828,
+      "pillow": 44.75824162364006
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-1920x1080-WebP",
+    "format": "WebP",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "noise",
+    "bytes": 1740812,
+    "ms": {
+      "native": 130.7628508657217,
+      "image-rs": 183.55221673846245,
+      "torchcodec": 129.4224513694644,
+      "pillow": 142.07238238304853
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  },
+  {
+    "case": "noise-1920x1080-WebP-lossless",
+    "format": "WebP-lossless",
+    "size": [
+      1920,
+      1080
+    ],
+    "content": "noise",
+    "bytes": 6220880,
+    "ms": {
+      "native": 35.56007985025644,
+      "image-rs": 37.496001459658146,
+      "torchcodec": 33.8436895981431,
+      "pillow": 43.497588485479355
+    },
+    "diff_vs_torch": {
+      "native": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "image-rs": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "torchcodec": {
+        "max": 0,
+        "mae": 0.0
+      },
+      "pillow": {
+        "max": 0,
+        "mae": 0.0
+      }
+    }
+  }
+]

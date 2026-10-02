@@ -63,9 +63,9 @@ batch = decode_jpeg(["left.jpg", "right.jpg"])
 depth = decode_png("depth.png", mode="UNCHANGED", output_dtype="auto")
 ```
 
-JPEG, PNG, WebP, GIF and single-stream AVIF use the bundled FFmpeg backend.
-Animated WebP requires system `libwebpdemux`; HEIC/HEIF requires system `libheif`,
-as it does in TorchCodec. These optional libraries are loaded only when needed.
+Images use dedicated backends: Rust `png`, libjpeg-turbo, libwebp/libwebpdemux,
+giflib and libavif. These are bundled in wheels; FFmpeg handles audio/video.
+HEIC/HEIF optionally loads system `libheif`, as it does in TorchCodec.
 No Pillow or PyTorch runtime dependency is added. See [image compatibility](docs/compatibility.md#images)
 for color modes, high-depth conversion, input types and limitations.
 
@@ -98,7 +98,7 @@ Current source relative to TorchCodec 0.17.0; image functions are not in the 0.1
 | --- | --- | --- |
 | Video decoder | △ CPU, SDR/HDR RGB | ✓ CPU / CUDA |
 | Audio decoder | ✓ CPU | ✓ CPU |
-| Image decoders | △ CPU; HEIC/animated WebP need optional system libraries | ✓ CPU; JPEG also CUDA |
+| Image decoders | △ CPU; HEIC needs optional system libheif | ✓ CPU; JPEG also CUDA |
 | Video / audio / image encoders | — | ✓ |
 | Clip samplers | — | ✓ |
 | Decoder transforms | ✓ Resize, CenterCrop, RandomCrop | ✓ |
@@ -190,7 +190,10 @@ See [container behavior](docs/container_robustness.md) for seek limitations and
 <summary>Build from source and run tests</summary>
 
 Source builds require Rust 1.88+, Clang/libclang, pkg-config and FFmpeg 7 development
-headers/libraries. Python handles API and playback selection; Rust + PyO3 handles
+headers/libraries, plus libjpeg-turbo, libwebp/libwebpdemux and libavif.
+`scripts/build_image_deps.sh PREFIX` builds the image libraries; put
+`PREFIX/lib/pkgconfig` in `PKG_CONFIG_PATH` and `PREFIX/lib` on the library search
+path. It needs CMake, Ninja, Meson and NASM on x86. Python handles API and playback selection; Rust + PyO3 handles
 FFmpeg. Native decoding releases the GIL, allowing separate decoder instances to
 run concurrently across Python threads. Calls on the same instance are serialized.
 The default is one FFmpeg thread per decoder; use independent workers for concurrent

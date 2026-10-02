@@ -1,0 +1,272 @@
+[
+  {
+    "case": "graphics-1920x1080-JPEG-progressive",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 34.69114191830158,
+      "native": 36.61426094671091,
+      "torchcodec": 35.90883376697699
+    }
+  },
+  {
+    "case": "graphics-1920x1080-JPEG420",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 21.381601691246033,
+      "native": 18.178485954801243,
+      "torchcodec": 13.013267889618874
+    }
+  },
+  {
+    "case": "graphics-1920x1080-JPEG444",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 27.711750318606693,
+      "native": 22.932900115847588,
+      "torchcodec": 21.885421747962635
+    }
+  },
+  {
+    "case": "graphics-224x224-JPEG-progressive",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 0.7627171774705251,
+      "native": 0.7504640767971674,
+      "torchcodec": 0.7183862229188284
+    }
+  },
+  {
+    "case": "graphics-224x224-JPEG420",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 0.347279633084933,
+      "native": 0.36513743301232654,
+      "torchcodec": 0.3487647821505864
+    }
+  },
+  {
+    "case": "graphics-224x224-JPEG444",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 0.7864739745855331,
+      "native": 0.5112874011198679,
+      "torchcodec": 0.5052462220191956
+    }
+  },
+  {
+    "case": "graphics-640x480-JPEG-progressive",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 3.9400619765122733,
+      "native": 4.5902834584315615,
+      "torchcodec": 4.6961574504772825
+    }
+  },
+  {
+    "case": "graphics-640x480-JPEG420",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 2.6120816667874656,
+      "native": 2.226502945025762,
+      "torchcodec": 2.045032878716787
+    }
+  },
+  {
+    "case": "graphics-640x480-JPEG444",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 4.021995390454928,
+      "native": 3.4574524809916816,
+      "torchcodec": 3.0931569635868073
+    }
+  },
+  {
+    "case": "noise-1920x1080-JPEG-progressive",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 80.59259566167991,
+      "native": 80.8087456971407,
+      "torchcodec": 81.58936103185017
+    }
+  },
+  {
+    "case": "noise-1920x1080-JPEG420",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 32.50303926567236,
+      "native": 25.776192545890808,
+      "torchcodec": 23.91505365570386
+    }
+  },
+  {
+    "case": "noise-1920x1080-JPEG444",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 65.77872360746066,
+      "native": 50.98629184067249,
+      "torchcodec": 47.58468642830849
+    }
+  },
+  {
+    "case": "noise-224x224-JPEG-progressive",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 2.025861293077469,
+      "native": 1.7654405285914738,
+      "torchcodec": 2.0584836602211
+    }
+  },
+  {
+    "case": "noise-224x224-JPEG420",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 0.7906022171179453,
+      "native": 0.5138721317052841,
+      "torchcodec": 0.5738207449515661
+    }
+  },
+  {
+    "case": "noise-224x224-JPEG444",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 1.5442731479803722,
+      "native": 0.9811607499917349,
+      "torchcodec": 1.0992561777432759
+    }
+  },
+  {
+    "case": "noise-640x480-JPEG-progressive",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 12.330721442898115,
+      "native": 11.764321476221085,
+      "torchcodec": 11.580652246872583
+    }
+  },
+  {
+    "case": "noise-640x480-JPEG420",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 4.512711117664973,
+      "native": 3.6549201856056848,
+      "torchcodec": 3.563984607656797
+    }
+  },
+  {
+    "case": "noise-640x480-JPEG444",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 9.538756062587103,
+      "native": 7.0970021188259125,
+      "torchcodec": 6.982412189245224
+    }
+  },
+  {
+    "case": "photo-1920x1080-JPEG-progressive",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 9.494865934054056,
+      "native": 13.631444424390793,
+      "torchcodec": 12.806867559750875
+    }
+  },
+  {
+    "case": "photo-1920x1080-JPEG420",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 5.3269583731889725,
+      "native": 6.593440969785054,
+      "torchcodec": 5.621532599131267
+    }
+  },
+  {
+    "case": "photo-1920x1080-JPEG444",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 6.716556226213773,
+      "native": 8.627496038873991,
+      "torchcodec": 7.963191096981366
+    }
+  },
+  {
+    "case": "photo-224x224-JPEG-progressive",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 0.4705619066953659,
+      "native": 0.44236953059832257,
+      "torchcodec": 0.5356657008330027
+    }
+  },
+  {
+    "case": "photo-224x224-JPEG420",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 0.19905405739943186,
+      "native": 0.17597712576389313,
+      "torchcodec": 0.23909409840901694
+    }
+  },
+  {
+    "case": "photo-224x224-JPEG444",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 0.26020656029383343,
+      "native": 0.23326960702737173,
+      "torchcodec": 0.30921151240666706
+    }
+  },
+  {
+    "case": "photo-640x480-JPEG-progressive",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 2.137914299964905,
+      "native": 3.06551530957222,
+      "torchcodec": 2.509774019320806
+    }
+  },
+  {
+    "case": "photo-640x480-JPEG420",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 1.0144089659055073,
+      "native": 1.1221083501974742,
+      "torchcodec": 1.0481613377730052
+    }
+  },
+  {
+    "case": "photo-640x480-JPEG444",
+    "max": 0,
+    "mae": 0.0,
+    "ms": {
+      "turbo-rs": 1.3342959185441334,
+      "native": 1.4365942527850468,
+      "torchcodec": 1.4675694207350414
+    }
+  }
+]

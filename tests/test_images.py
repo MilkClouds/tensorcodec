@@ -13,13 +13,14 @@ from PIL import Image
 from tests.utils import as_numpy, run_ffmpeg
 
 
+def chunk(kind, data):
+    return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+
+
 def png_bytes(pixels):
     height, width, channels = pixels.shape
     depth = pixels.dtype.itemsize * 8
     color = {1: 0, 2: 4, 3: 2, 4: 6}[channels]
-
-    def chunk(kind, data):
-        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
 
     raw = pixels.astype(">u2" if depth == 16 else np.uint8).tobytes()
     stride = width * channels * (depth // 8)
@@ -33,6 +34,8 @@ def png_bytes(pixels):
 
 
 def dtype_for(backend, name):
+    if name == "auto":
+        return name
     if backend.__name__.startswith("torchcodec"):
         import torch
 
@@ -190,9 +193,6 @@ def test_optional_libraries_report_missing_dependencies(monkeypatch):
     heic = struct.pack(">I", 24) + b"ftypheic" + b"\0" * 4 + b"mif1heic"
     with pytest.raises(ImportError, match="libheif"):
         decode_image(heic)
-    animated = b"RIFF" + struct.pack("<I", 12) + b"WEBPANIM" + b"\0" * 4
-    with pytest.raises(ImportError, match="libwebpdemux"):
-        decode_image(animated)
 
 
 @pytest.fixture(scope="module")
@@ -344,9 +344,7 @@ def test_high_depth_avif(oracle, tmp_path):
     actual = decode_avif(path, output_dtype="auto")
     expected = as_numpy(oracle.decode_avif(path, output_dtype="auto"))
     assert actual.dtype == np.uint16
-    # FFmpeg and libavif use different high-depth YUV conversion/scaling paths.
-    # Bound the difference to one 8-bit-equivalent level, not native-sample equality.
-    np.testing.assert_allclose(actual.astype(np.int32), expected.astype(np.int32), atol=257, rtol=0)
+    np.testing.assert_array_equal(actual, expected)
 
 
 def test_corrupt_png_raises():
@@ -369,11 +367,12 @@ def test_cmyk_jpeg_modes(oracle):
         np.testing.assert_allclose(actual.astype(int), expected.astype(int), atol=2, rtol=0)
         if "ALPHA" in mode:
             assert (actual[-1] == 255).all()
-    with pytest.raises(NotImplementedError, match="CMYK"):
-        decode_jpeg(data, mode="UNCHANGED")
+    np.testing.assert_array_equal(
+        decode_jpeg(data, mode="UNCHANGED"), as_numpy(oracle.decode_jpeg(data, mode="UNCHANGED"))
+    )
 
 
-@pytest.mark.parametrize("codec", ["PNG", "JPEG", "AVIF"])
+@pytest.mark.parametrize("codec", ["PNG", "JPEG", "WEBP", "AVIF"])
 @pytest.mark.parametrize("orientation", range(1, 9))
 def test_exif_orientation(oracle, codec, orientation):
     from tensorcodec.decoders import decode_image
@@ -388,3 +387,134 @@ def test_exif_orientation(oracle, codec, orientation):
     actual, expected = decode_image(output.getvalue()), as_numpy(oracle.decode_image(output.getvalue()))
     assert actual.shape == expected.shape
     np.testing.assert_allclose(actual.astype(int), expected.astype(int), atol=2, rtol=0)
+
+
+@pytest.mark.parametrize("depth", [8, 16])
+@pytest.mark.parametrize("channels", [1, 2, 3, 4])
+def test_png_all_modes_exact(oracle, depth, channels):
+    from tensorcodec.decoders import decode_png
+
+    dtype = np.uint8 if depth == 8 else np.uint16
+    pixels = np.random.default_rng(42).integers(0, 2**depth, (29, 37, channels), dtype=dtype)
+    data = png_bytes(pixels)
+    for mode in ("UNCHANGED", "GRAY", "GRAY_ALPHA", "RGB", "RGB_ALPHA"):
+        for output in ("auto", "uint8", "uint16"):
+            actual = decode_png(data, mode=mode, output_dtype=output)
+            expected = as_numpy(oracle.decode_png(data, mode=mode, output_dtype=dtype_for(oracle, output)))
+            np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize("codec", ["JPEG", "PNG", "WEBP"])
+@pytest.mark.parametrize("content", ["noise", "graphics"])
+def test_textured_images_exact(oracle, codec, content):
+    from tensorcodec.decoders import decode_image
+
+    if content == "noise":
+        pixels = np.random.default_rng(42).integers(0, 256, (127, 193, 3), dtype=np.uint8)
+    else:
+        y, x = np.indices((127, 193))
+        pixels = np.stack(((x // 17 % 2) * 255, (y // 23 % 2) * 255, ((x + y) // 31 % 2) * 255), axis=-1)
+        pixels = pixels.astype(np.uint8)
+    for options in ({"subsampling": 2}, {"subsampling": 0}, {"progressive": True}) if codec == "JPEG" else ({},):
+        output = BytesIO()
+        Image.fromarray(pixels).save(output, format=codec, quality=90, **options)
+        data = output.getvalue()
+        np.testing.assert_array_equal(decode_image(data), as_numpy(oracle.decode_image(data)))
+
+
+@pytest.mark.parametrize("mode", ["P", "L", "RGB"])
+def test_png_transparency_key(oracle, mode):
+    from tensorcodec.decoders import decode_png
+
+    image = Image.new(mode, (19, 13))
+    if mode == "P":
+        image.putpalette([10, 20, 30, 50, 60, 70] + [0] * 762)
+        image.paste(1, (0, 0, 8, 9))
+    else:
+        image.paste(123 if mode == "L" else (10, 20, 30), (0, 0, 8, 9))
+    output = BytesIO()
+    image.save(output, format="PNG", transparency=(10, 20, 30) if mode == "RGB" else 0)
+    for read_mode in ("UNCHANGED", "GRAY", "GRAY_ALPHA", "RGB", "RGB_ALPHA"):
+        for dtype in ("auto", "uint8", "uint16"):
+            data = output.getvalue()
+            actual = decode_png(data, mode=read_mode, output_dtype=dtype)
+            expected = as_numpy(oracle.decode_png(data, mode=read_mode, output_dtype=dtype_for(oracle, dtype)))
+            np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize("codec", ["JPEG", "PNG", "WEBP", "GIF", "AVIF"])
+def test_truncated_images_raise(codec):
+    from tensorcodec.decoders import decode_image
+
+    output = BytesIO()
+    Image.new("RGB", (37, 29), (30, 60, 90)).save(output, format=codec, max_threads=1)
+    data = output.getvalue()
+    with pytest.raises((RuntimeError, ValueError)):
+        decode_image(data[: len(data) // 2])
+
+
+def test_avif_alpha(oracle):
+    from tensorcodec.decoders import decode_avif
+
+    pixels = np.random.default_rng(42).integers(0, 256, (31, 43, 4), dtype=np.uint8)
+    output = BytesIO()
+    Image.fromarray(pixels).save(output, format="AVIF", quality=90, subsampling="4:4:4", max_threads=1)
+    for mode in ("UNCHANGED", "RGB", "RGB_ALPHA", "GRAY", "GRAY_ALPHA"):
+        data = output.getvalue()
+        np.testing.assert_array_equal(decode_avif(data, mode=mode), as_numpy(oracle.decode_avif(data, mode=mode)))
+
+
+def test_png_adam7_interlace(oracle):
+    from tensorcodec.decoders import decode_png
+
+    pixels = np.random.default_rng(42).integers(0, 65536, (29, 37, 4), dtype=np.uint16)
+    raw = bytearray()
+    for x, y, dx, dy in (
+        (0, 0, 8, 8),
+        (4, 0, 8, 8),
+        (0, 4, 4, 8),
+        (2, 0, 4, 4),
+        (0, 2, 2, 4),
+        (1, 0, 2, 2),
+        (0, 1, 1, 2),
+    ):
+        for row in pixels[y::dy, x::dx]:
+            raw.extend(b"\0" + row.astype(">u2").tobytes())
+    data = (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", 37, 29, 16, 6, 0, 0, 1))
+        + chunk(b"IDAT", zlib.compress(raw))
+        + chunk(b"IEND", b"")
+    )
+    for mode in ("UNCHANGED", "RGB", "RGB_ALPHA", "GRAY", "GRAY_ALPHA"):
+        actual = decode_png(data, mode=mode, output_dtype="auto")
+        expected = as_numpy(oracle.decode_png(data, mode=mode, output_dtype="auto"))
+        np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize("bits", [1, 2, 4])
+def test_low_bit_palette_png(oracle, bits):
+    from tensorcodec.decoders import decode_png
+
+    image = Image.new("P", (37, 29))
+    image.putpalette(list(range(256)) * 3)
+    image.putdata((np.arange(37 * 29) % (2**bits)).tolist())
+    buffer = BytesIO()
+    image.save(buffer, format="PNG", bits=bits, transparency=0)
+    for mode in ("UNCHANGED", "RGB", "RGB_ALPHA", "GRAY", "GRAY_ALPHA"):
+        np.testing.assert_array_equal(
+            decode_png(buffer.getvalue(), mode=mode), as_numpy(oracle.decode_png(buffer.getvalue(), mode=mode))
+        )
+
+
+@pytest.mark.parametrize("codec", ["WEBP", "GIF", "AVIF"])
+def test_image_animation_all_frames(oracle, codec):
+    from tensorcodec.decoders import decode_image
+
+    rng = np.random.default_rng(42)
+    frames = [Image.fromarray(rng.integers(0, 256, (29, 37, 3), dtype=np.uint8)) for _ in range(3)]
+    output = BytesIO()
+    frames[0].save(output, format=codec, save_all=True, append_images=frames[1:], duration=100, max_threads=1)
+    actual = decode_image(output.getvalue())
+    assert actual.shape == (3, 3, 29, 37)
+    np.testing.assert_array_equal(actual, as_numpy(oracle.decode_image(output.getvalue())))

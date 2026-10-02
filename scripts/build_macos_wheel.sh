@@ -8,9 +8,11 @@ export PKG_CONFIG_PATH="$build_prefix/openssl/lib/pkgconfig${PKG_CONFIG_PATH:+:$
 if [ ! -f "$build_prefix/ready" ]; then
   bash scripts/build_openssl.sh "$build_prefix/openssl"
   bash scripts/build_ffmpeg.sh "$build_prefix/ffmpeg"
+  bash scripts/build_image_deps.sh "$build_prefix/images"
   touch "$build_prefix/ready"
 fi
 export FFMPEG_DIR="$build_prefix/ffmpeg"
+export PKG_CONFIG_PATH="$build_prefix/images/lib/pkgconfig:$PKG_CONFIG_PATH"
 maturin build --release --locked --out unrepaired
 delocate-wheel --require-archs "$(uname -m)" -w dist unrepaired/*.whl
 python scripts/check_wheel_size.py dist/*.whl

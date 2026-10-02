@@ -86,13 +86,34 @@ def generate(root: Path):
             check=True,
         )
 
+    from PIL import Image
+
+    from tensorcodec.decoders import decode_image
+
+    image = Image.fromarray(np.random.default_rng(42).integers(0, 256, (29, 37, 3), dtype=np.uint8))
+    for codec in ("JPEG", "PNG", "WEBP", "GIF", "AVIF"):
+        path = root / f"image.{codec.lower()}"
+        image.save(path, format=codec, max_threads=1)
+        np.save(root / f"image.{codec.lower()}.npy", decode_image(path))
+    for codec in ("WEBP", "GIF", "AVIF"):
+        path = root / f"animated.{codec.lower()}"
+        image.save(
+            path,
+            format=codec,
+            save_all=True,
+            append_images=[image.transpose(Image.Transpose.FLIP_LEFT_RIGHT)],
+            duration=100,
+            max_threads=1,
+        )
+        np.save(root / f"animated.{codec.lower()}.npy", decode_image(path))
+
 
 def check(root: Path):
     import numpy as np
 
     from tensorcodec.decoders import AudioDecoder, VideoDecoder
 
-    assert all(importlib.util.find_spec(name) is None for name in ("torch", "torchcodec", "av"))
+    assert all(importlib.util.find_spec(name) is None for name in ("torch", "torchcodec", "av", "PIL"))
     with VideoDecoder(root / "video.mp4") as decoder:
         assert len(decoder) == 10
         frames = decoder.get_frames_at([7, 0, 7])
@@ -123,6 +144,12 @@ def check(root: Path):
             batch = decoder.get_frames_at([2, 0, 2])
             assert batch.pixel_format == fmt and batch.data.dtype.isnative
             np.testing.assert_array_equal(batch.data, expected[[2, 0, 2]].transpose(0, 3, 1, 2))
+    from tensorcodec.decoders import decode_image
+
+    for path in root.glob("image.*.npy"):
+        np.testing.assert_array_equal(decode_image(path.with_suffix("")), np.load(path))
+    for path in root.glob("animated.*.npy"):
+        np.testing.assert_array_equal(decode_image(path.with_suffix("")), np.load(path))
     print(f"Wheel decoding passed: Python {platform.python_version()}, {platform.machine()}, {platform.libc_ver()}")
 
 

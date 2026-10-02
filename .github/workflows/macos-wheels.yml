@@ -31,7 +31,7 @@ jobs:
           global-cache: true
       - name: Install build tools
         run: |
-          brew install nasm pkg-config coreutils meson ninja
+          brew install nasm pkg-config coreutils meson ninja cmake
           uv venv
           uv pip install numpy pytest 'maturin>=1.8,<2' delocate twine 'Pillow>=11.3'
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
@@ -41,7 +41,7 @@ jobs:
         id: native-cache
         with:
           path: .native-deps/macos
-          key: macos14-${{ matrix.arch }}-${{ hashFiles('scripts/build_openssl.sh', 'scripts/build_dav1d.sh', 'scripts/build_ffmpeg.sh', 'scripts/build_macos_wheel.sh') }}
+          key: macos14-${{ matrix.arch }}-${{ hashFiles('scripts/build_openssl.sh', 'scripts/build_dav1d.sh', 'scripts/build_ffmpeg.sh', 'scripts/build_image_deps.sh', 'scripts/build_macos_wheel.sh') }}
       - name: Build and bundle wheel
         run: bash scripts/build_macos_wheel.sh
       - uses: actions/cache/save@v6

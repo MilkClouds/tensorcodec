@@ -33,7 +33,7 @@ jobs:
         id: native-cache
         with:
           path: .native-deps
-          key: manylinux2014-${{ matrix.target }}-${{ hashFiles('scripts/build_nasm.sh', 'scripts/build_openssl.sh', 'scripts/build_dav1d.sh', 'scripts/build_ffmpeg.sh') }}
+          key: manylinux2014-${{ matrix.target }}-${{ hashFiles('scripts/build_nasm.sh', 'scripts/build_openssl.sh', 'scripts/build_dav1d.sh', 'scripts/build_ffmpeg.sh', 'scripts/build_image_deps.sh') }}
       - name: Build portable Linux wheel
         uses: PyO3/maturin-action@v1
         with:
@@ -50,7 +50,7 @@ jobs:
             export LD_LIBRARY_PATH="$prefix/openssl/lib:$prefix/ffmpeg/lib"
             if [ ! -f "$prefix/ready" ]; then
               yum install -y perl-core
-              /opt/python/cp310-cp310/bin/python -m pip install meson==1.12.1 ninja==1.13.2
+              /opt/python/cp310-cp310/bin/python -m pip install meson==1.12.1 ninja==1.13.2 cmake==4.4.3
               export PATH="/opt/python/cp310-cp310/bin:$PATH"
               if [ "$(uname -m)" = x86_64 ]; then
                 bash scripts/build_nasm.sh "$prefix/nasm"
@@ -58,8 +58,11 @@ jobs:
               fi
               bash scripts/build_openssl.sh "$prefix/openssl"
               bash scripts/build_ffmpeg.sh "$prefix/ffmpeg"
+              bash scripts/build_image_deps.sh "$prefix/images"
               touch "$prefix/ready"
             fi
+            export PKG_CONFIG_PATH="$prefix/images/lib/pkgconfig:$PKG_CONFIG_PATH"
+            export LD_LIBRARY_PATH="$prefix/images/lib:$LD_LIBRARY_PATH"
             export FFMPEG_DIR="$prefix/ffmpeg"
       - name: Check native cache completeness
         if: always()

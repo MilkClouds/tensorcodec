@@ -1,71 +1,102 @@
-//! Still/animated images use sequential decoding, without video timestamps or seeking.
-use numpy::{
-    ndarray::{Array, Axis},
-    IntoPyArray,
-};
-use pyo3::exceptions::{PyNotImplementedError, PyRuntimeError, PyValueError};
+//! Dedicated codec libraries; FFmpeg is reserved for audio/video.
+use numpy::{ndarray::Array, IntoPyArray};
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
+use std::ffi::{c_char, c_int, c_void, CStr};
 
-use crate::ffmpeg::{self, Pixels, Source};
+#[repr(C)]
+struct Output {
+    data: *mut c_void,
+    frames: usize,
+    height: usize,
+    width: usize,
+    channels: usize,
+    bytes: usize,
+    bits: c_int,
+    orientation: c_int,
+    animated: c_int,
+    error: [c_char; 256],
+}
+impl Drop for Output {
+    fn drop(&mut self) {
+        unsafe { libc::free(self.data) };
+    }
+}
+extern "C" {
+    fn tc_decode_image(
+        data: *const u8,
+        size: usize,
+        codec: c_int,
+        mode: c_int,
+        depth: c_int,
+        threads: c_int,
+        out: *mut Output,
+    ) -> c_int;
+}
 
 #[pyfunction]
-#[pyo3(signature = (data, channels=0, threads=1, apply_rotation=false))]
 pub fn decode_image(
     py: Python<'_>,
     data: &[u8],
-    channels: usize,
+    codec: i32,
+    mode: i32,
+    depth: i32,
     threads: i32,
-    apply_rotation: bool,
-) -> PyResult<PyObject> {
-    if channels > 4 || threads < 1 {
-        return Err(PyValueError::new_err(
-            "invalid image channels or thread count",
-        ));
+) -> PyResult<(PyObject, i32, bool)> {
+    if !(0..=4).contains(&codec)
+        || !(0..=4).contains(&mode)
+        || ![0, 8, 16].contains(&depth)
+        || threads < 1
+    {
+        return Err(PyValueError::new_err("invalid native image options"));
     }
-    let source = Source::Bytes(data.to_vec());
-    let mut decoder = py
-        .allow_threads(|| ffmpeg::Decoder::open(source, false, None, threads))
-        .map_err(ffmpeg::Error::into_py)?;
-    let turns = if apply_rotation {
-        let metadata = decoder.metadata(py, true)?;
-        let rotation = metadata
-            .get_item("rotation")?
-            .unwrap()
-            .extract::<Option<f64>>()?
-            .unwrap_or(0.);
-        let turns = (rotation / 90.).round();
-        if (rotation - turns * 90.).abs() > 1e-4 {
-            return Err(PyNotImplementedError::new_err(
-                "non-right-angle image rotation is unsupported",
+    if codec == 1 {
+        return Ok((crate::png_image::decode(py, data, mode, depth)?, 1, false));
+    }
+    // Only the input slice crosses the GIL boundary. Output pointers stay on this thread.
+    let (pixels, shape, bits, orientation, animated) = py.allow_threads(|| {
+        let mut out: Output = unsafe { std::mem::zeroed() };
+        let ok = unsafe {
+            tc_decode_image(
+                data.as_ptr(),
+                data.len(),
+                codec,
+                mode,
+                depth,
+                threads,
+                &mut out,
+            )
+        };
+        if ok == 0 {
+            return Err(PyRuntimeError::new_err(
+                unsafe { CStr::from_ptr(out.error.as_ptr()) }
+                    .to_string_lossy()
+                    .into_owned(),
             ));
         }
-        (turns as i32).rem_euclid(4)
+        let shape = (out.frames, out.height, out.width, out.channels);
+        let bytes =
+            unsafe { std::slice::from_raw_parts(out.data.cast::<u8>(), out.bytes) }.to_vec();
+        Ok((bytes, shape, out.bits, out.orientation, out.animated != 0))
+    })?;
+    let array = if bits == 16 {
+        let values: Vec<u16> = pixels
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|b| u16::from_ne_bytes(*b))
+            .collect();
+        Array::from_shape_vec(shape, values)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .into_pyarray(py)
+            .into_any()
+            .unbind()
     } else {
-        0
+        Array::from_shape_vec(shape, pixels)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            .into_pyarray(py)
+            .into_any()
+            .unbind()
     };
-    let images = py
-        .allow_threads(|| decoder.images(channels))
-        .map_err(ffmpeg::Error::into_py)?;
-    let shape = (images.frames, images.height, images.width, images.channels);
-    macro_rules! array {
-        ($data:expr) => {{
-            let mut array = Array::from_shape_vec(shape, $data)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-            if turns % 2 == 1 {
-                array.swap_axes(1, 2);
-            }
-            if turns == 1 || turns == 2 {
-                array.invert_axis(Axis(1));
-            }
-            if turns == 2 || turns == 3 {
-                array.invert_axis(Axis(2));
-            }
-            array.into_pyarray(py).into_any().unbind()
-        }};
-    }
-    Ok(match images.pixels {
-        Pixels::U8(data) => array!(data),
-        Pixels::U16(data) => array!(data),
-        Pixels::F32(_) => unreachable!(),
-    })
+    Ok((array, orientation, animated))
 }

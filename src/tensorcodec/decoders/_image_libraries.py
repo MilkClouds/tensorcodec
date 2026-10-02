@@ -1,4 +1,4 @@
-"""Optional system-library bindings for formats FFmpeg 7 cannot decode completely."""
+"""Optional system libheif binding for HEIC decoding."""
 
 import ctypes as c
 from ctypes.util import find_library
@@ -22,48 +22,6 @@ def _function(library, name, result, *arguments):
     function = getattr(library, name)
     function.restype, function.argtypes = result, arguments
     return function
-
-
-class _WebPData(c.Structure):
-    _fields_ = [("bytes", c.c_void_p), ("size", c.c_size_t)]
-
-
-class _WebPInfo(c.Structure):
-    _fields_ = [(name, c.c_uint32) for name in ("width", "height", "loop", "background", "frames")] + [
-        ("padding", c.c_uint32 * 4)
-    ]
-
-
-def webp_animation(data):
-    library = _library("webpdemux")
-    new = _function(library, "WebPAnimDecoderNewInternal", c.c_void_p, c.POINTER(_WebPData), c.c_void_p, c.c_int)
-    info = _function(library, "WebPAnimDecoderGetInfo", c.c_int, c.c_void_p, c.POINTER(_WebPInfo))
-    more = _function(library, "WebPAnimDecoderHasMoreFrames", c.c_int, c.c_void_p)
-    next_frame = _function(
-        library, "WebPAnimDecoderGetNext", c.c_int, c.c_void_p, c.POINTER(c.POINTER(c.c_uint8)), c.POINTER(c.c_int)
-    )
-    delete = _function(library, "WebPAnimDecoderDelete", None, c.c_void_p)
-    buffer = c.create_string_buffer(data)
-    source = _WebPData(c.cast(buffer, c.c_void_p), len(data))
-    decoder = new(c.byref(source), None, 0x0107)  # Stable libwebp demux ABI; default output is RGBA.
-    if not decoder:
-        raise RuntimeError("cannot open animated WebP")
-    try:
-        metadata = _WebPInfo()
-        if not info(decoder, c.byref(metadata)) or not metadata.width or not metadata.height:
-            raise RuntimeError("invalid WebP canvas")
-        frames = []
-        while more(decoder):
-            pixels, timestamp = c.POINTER(c.c_uint8)(), c.c_int()
-            if not next_frame(decoder, c.byref(pixels), c.byref(timestamp)) or not pixels:
-                raise RuntimeError("cannot decode WebP frame")
-            frame = np.ctypeslib.as_array(pixels, shape=(metadata.height * metadata.width * 4,))
-            frames.append(frame.reshape(metadata.height, metadata.width, 4).copy())
-        if len(frames) != metadata.frames or not frames:
-            raise RuntimeError("WebP frame count differs from its header")
-        return np.stack(frames)
-    finally:
-        delete(decoder)
 
 
 class _HeifError(c.Structure):

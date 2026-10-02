@@ -29,13 +29,13 @@ jobs:
         with:
           pixi-version: v0.81.0
           run-install: false
-          global-environments: ffmpeg=7.1.1=gpl_* --with libclang=18 --with pkg-config --with libheif --with libwebp
+          global-environments: ffmpeg=7.1.1=gpl_* --with libclang=18 --with pkg-config --with libheif --with libwebp --with nasm
           global-cache: true
       - name: Install build tools
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install --upgrade pip
-          .venv/bin/pip install numpy pytest ruff 'maturin>=1.8,<2' 'Pillow>=11.3'
+          .venv/bin/pip install numpy pytest ruff 'maturin>=1.8,<2' 'Pillow>=11.3' cmake ninja meson
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
           echo "VIRTUAL_ENV=$GITHUB_WORKSPACE/.venv" >> "$GITHUB_ENV"
       - name: Configure prebuilt FFmpeg
@@ -49,6 +49,11 @@ jobs:
           echo "PKG_CONFIG_PATH=$prefix/lib/pkgconfig" >> "$GITHUB_ENV"
           echo "BINDGEN_EXTRA_CLANG_ARGS=-I$(gcc -print-file-name=include)" >> "$GITHUB_ENV"
           "$prefix/bin/ffmpeg" -version
+      - name: Build dedicated image libraries
+        run: |
+          bash scripts/build_image_deps.sh "$PWD/.native-deps/images"
+          echo "PKG_CONFIG_PATH=$PWD/.native-deps/images/lib/pkgconfig:$PKG_CONFIG_PATH" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$PWD/.native-deps/images/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
       - name: Static checks
         run: |
           ruff check src/tensorcodec tests scripts
