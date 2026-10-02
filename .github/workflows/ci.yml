@@ -56,8 +56,8 @@ jobs:
           echo "LD_LIBRARY_PATH=$PWD/.native-deps/images/lib:$LD_LIBRARY_PATH" >> "$GITHUB_ENV"
       - name: Static checks
         run: |
-          ruff check src/tensorcodec tests scripts
-          ruff format --check src/tensorcodec tests scripts
+          ruff check src/tensorcodec tests scripts benchmarks/image_decode.py
+          ruff format --check src/tensorcodec tests scripts benchmarks/image_decode.py
           cargo fmt --manifest-path native/Cargo.toml --check
           cargo clippy --manifest-path native/Cargo.toml --locked -- -D warnings
       - name: Build extension against prebuilt FFmpeg
