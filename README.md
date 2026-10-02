@@ -2,8 +2,7 @@
 
 # TensorCodec
 
-CPU video/audio decoding with TorchCodec-style APIs and NumPy output.
-Optional image decoding and JPEG/PNG encoding reuse OpenCV.
+Video, audio and image codecs with TorchCodec-style APIs and NumPy arrays.
 
 <p align="center">
 <a href="https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml"><img src="https://github.com/MilkClouds/tensorcodec/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
@@ -26,8 +25,8 @@ Optional image decoding and JPEG/PNG encoding reuse OpenCV.
 - **Efficient batch decoding.** Rust/PyO3 bindings to FFmpeg process frame batches
   in a single native call, avoiding per-frame Python calls. Closing a decoder
   releases its FFmpeg resources without waiting for Python's cyclic GC.
-- **Lightweight installation.** Linux wheels are 10.9–11.1 MiB (v0.1.5), including
-  FFmpeg shared libraries. NumPy is the only Python dependency.
+- **Lightweight installation.** Linux wheels are 10.9–11.1 MiB (v0.2.0), including
+  FFmpeg shared libraries. NumPy is the only required Python dependency.
 
 ## Quick start
 
@@ -83,11 +82,13 @@ TensorCodec 0.2.0 relative to TorchCodec 0.17.0.
 | --- | --- | --- |
 | Video decoder | △ CPU, SDR/HDR RGB | ✓ CPU / CUDA |
 | Audio decoder | ✓ CPU | ✓ CPU |
-| Image decoders | — | ✓ |
-| Video / audio / image encoders | — | ✓ |
+| Image decoders | △ JPEG, PNG, WebP, GIF, AVIF; CPU | ✓ |
+| Image encoders | △ JPEG, PNG; CPU | ✓ |
+| Video / audio encoders | — | ✓ |
 | Clip samplers | — | ✓ |
 | Decoder transforms | ✓ Resize, CenterCrop, RandomCrop | ✓ |
 
+See [image APIs and installation](docs/images.md) for image codec requirements.
 FPS-based frame queries are supported; clip samplers are a separate API.
 
 ### Decoder compatibility
@@ -139,7 +140,7 @@ Other dependencies are excluded. [Measurements](docs/package_size.md).
 
 ## Scope and compatibility
 
-The supported CPU API is checked for frame selection, ordering, timestamps,
+The supported CPU video/audio API is checked for frame selection, ordering, timestamps,
 durations, stream selection and metadata, both against TorchCodec 0.17.0 and
 independently generated media.
 

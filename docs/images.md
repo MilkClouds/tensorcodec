@@ -1,19 +1,11 @@
-# Optional CPU image codecs
+# Image codecs
 
-Image decoding and JPEG/PNG encoding use the user's OpenCV installation through
-Python. NumPy remains the only required Python dependency; importing TensorCodec
-does not import OpenCV or Pillow. No native image libraries or build steps are
-added to TensorCodec. Pillow is used only to generate independent test inputs.
-
-Use an existing `cv2 >= 4.13` installation, or install one explicitly:
+Decode JPEG, PNG, WebP, GIF and AVIF into NumPy arrays, and encode grayscale or
+RGB arrays as JPEG or PNG. Decoding returns CHW images or NCHW animations on CPU.
 
 ```sh
 uv pip install 'tensorcodec[images]'
 ```
-
-The extra selects `opencv-python-headless`. Do not install multiple OpenCV wheel
-variants in the same environment. OpenCV adds its own wheel size and dependencies;
-it is not part of TensorCodec's advertised base wheel size.
 
 ```python
 from tensorcodec.decoders import decode_image, decode_jpeg
@@ -25,6 +17,14 @@ batch = decode_jpeg(['one.jpg', 'two.jpg'])  # list, possibly different sizes
 PngEncoder(rgb).to_file('output.png', compression_level=6)
 encoded = JpegEncoder(rgb).to_tensor(quality=90)  # 1-D uint8 NumPy array
 ```
+
+## Installation
+
+The current image backend uses OpenCV 4.13+. An existing compatible `cv2`
+installation is sufficient; otherwise the `images` extra installs
+`opencv-python-headless`. Use only one OpenCV wheel variant per environment.
+NumPy is the only required dependency for the base package. Image dependencies
+are separate from the base wheel size. Pillow is used only in tests.
 
 ## Contract and limits
 
@@ -44,7 +44,7 @@ encoded = JpegEncoder(rgb).to_tensor(quality=90)  # 1-D uint8 NumPy array
 - AVIF color conversion follows OpenCV. Dropping alpha preserves straight RGB;
   TorchCodec 0.17.0 premultiplies AVIF RGB in that case. Pixel identity with
   TorchCodec is not promised across formats, builds or codec versions.
-- HEIC is unsupported. There is no separate libheif or other decoder fallback.
+- HEIC is unsupported.
 - Other formats depend on the installed OpenCV build. Missing dependencies,
   unsupported codecs and decode failures raise; no alternate decoder is tried.
 - Encoders accept nonempty CHW uint8 arrays with 1 or 3 channels. Both provide
@@ -71,8 +71,7 @@ one OpenCV/Torch thread, three warmups and the median of five batches.
 | Lossy WebP | 1.07 |
 | Lossless WebP | 1.11 |
 
-These corpus-specific results favor simplicity over specialized native backends;
-OpenCV is not universally fastest. Encoding speed has not been benchmarked.
+Results are specific to this corpus and environment. Encoding speed has not been benchmarked.
 With the development and oracle dependencies installed, run
 `python benchmarks/image_codecs.py CORPUS_DIRECTORY` inside a uv virtual
 environment to measure in-memory decoding and exact RGB agreement. The script

@@ -1,7 +1,7 @@
 [project]
 name = "tensorcodec"
 version = "0.2.0"
-description = "NumPy media codecs with TorchCodec-style APIs and optional OpenCV images"
+description = "Video, audio and image codecs with TorchCodec-style APIs and NumPy arrays"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "licenses/*"]

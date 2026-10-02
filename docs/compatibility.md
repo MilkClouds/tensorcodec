@@ -26,9 +26,12 @@ FFmpeg; arrays are returned as NumPy instead of torch.Tensor.
   takes no transforms.
 
 CUDA, torch inputs, HDR tone mapping, arbitrary-angle rotation,
-encoders and samplers are outside the
-initial CPU decoding contract. Unsupported device/transform options fail explicitly.
+video/audio encoders and samplers are outside the
+CPU decoding contract. Unsupported device/transform options fail explicitly.
 Do not advertise full-package or torch.Tensor type compatibility.
+
+Image decoding and JPEG/PNG encoding have a separate [image API contract](images.md),
+including supported formats, array layouts and compatibility limits.
 
 ## Playback rules
 
